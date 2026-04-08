@@ -17,20 +17,22 @@ import (
 )
 
 type SearchModel struct {
-	store    qdrant.Store
-	input    textinput.Model
-	spinner  spinner.Model
-	preview  viewport.Model
-	renderer *glamour.TermRenderer
-	results  []searcher.Result
-	cursor   int
-	loading  bool
-	status   string
-	width    int
-	height   int
+	store        qdrant.Store
+	minScore     float32
+	input        textinput.Model
+	spinner      spinner.Model
+	preview      viewport.Model
+	renderer     *glamour.TermRenderer
+	results      []searcher.Result
+	cursor       int
+	previewFocus bool
+	loading      bool
+	status       string
+	width        int
+	height       int
 }
 
-func newSearchModel(store qdrant.Store) SearchModel {
+func newSearchModel(store qdrant.Store, minScore float32) SearchModel {
 	ti := textinput.New()
 	ti.Placeholder = "Type to search your markdown knowledge base..."
 	ti.Focus()
@@ -41,9 +43,10 @@ func newSearchModel(store qdrant.Store) SearchModel {
 	sp.Style = spinnerStyle
 
 	return SearchModel{
-		store:   store,
-		input:   ti,
-		spinner: sp,
+		store:    store,
+		minScore: minScore,
+		input:    ti,
+		spinner:  sp,
 	}
 }
 
@@ -62,18 +65,26 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 		}
 
 		switch msg.String() {
-		case "up", "k":
+		case "up":
 			if m.cursor > 0 {
 				m.cursor--
 				m.updatePreview()
 			}
 			return m, nil
 
-		case "down", "j":
+		case "down":
 			if m.cursor < len(m.results)-1 {
 				m.cursor++
 				m.updatePreview()
 			}
+			return m, nil
+
+		case "pgup":
+			m.preview.HalfViewUp()
+			return m, nil
+
+		case "pgdn":
+			m.preview.HalfViewDown()
 			return m, nil
 
 		case "enter":
@@ -187,7 +198,7 @@ func (m SearchModel) View() string {
 
 	// Header
 	title := titleStyle.Render(" code-gehirn ")
-	help := dimStyle.Render(" [↑↓/jk] navigate  [enter] summarize  [q] quit ")
+	help := dimStyle.Render(" [↑↓] navigate  [pgup/pgdn] scroll preview  [enter] summarize  [q] quit ")
 	gap := m.width - lipgloss.Width(title) - lipgloss.Width(help)
 	if gap < 0 {
 		gap = 0
@@ -220,6 +231,7 @@ func (m SearchModel) View() string {
 
 	for i := start; i < len(m.results) && i < start+maxVisible; i++ {
 		r := m.results[i]
+		score := dimStyle.Render(fmt.Sprintf("%.2f", r.Score))
 		label := fmt.Sprintf("[%d] %s", i+1, r.Title)
 		pathStr := ""
 		if r.Path != "" {
@@ -227,9 +239,9 @@ func (m SearchModel) View() string {
 		}
 
 		if i == m.cursor {
-			sb.WriteString(selectedItemStyle.Render("  > "+label) + pathStr + "\n")
+			sb.WriteString(selectedItemStyle.Render("  > "+label) + " " + score + pathStr + "\n")
 		} else {
-			sb.WriteString(normalItemStyle.Render("    "+label) + pathStr + "\n")
+			sb.WriteString(normalItemStyle.Render("    "+label) + " " + score + pathStr + "\n")
 		}
 	}
 
@@ -255,7 +267,7 @@ func debounceCmd(query string) tea.Cmd {
 
 func (m SearchModel) searchCmd(query string) tea.Cmd {
 	return func() tea.Msg {
-		results, err := searcher.Search(context.Background(), m.store, query, 20)
+		results, err := searcher.Search(context.Background(), m.store, query, 20, m.minScore)
 		return SearchResultMsg{Results: results, Err: err}
 	}
 }

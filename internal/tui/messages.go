@@ -9,9 +9,12 @@ type SearchResultMsg struct {
 }
 
 // SummaryMsg is dispatched when the LLM summarization completes.
+// Query must match SummaryModel.query or the message is a stale result and
+// should be discarded.
 type SummaryMsg struct {
-	Text string
-	Err  error
+	Query string
+	Text  string
+	Err   error
 }
 
 // LogMsg is dispatched to update the status bar or log section.

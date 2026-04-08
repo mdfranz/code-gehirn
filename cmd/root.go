@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/mfranz/code-gehirn/internal/config"
+	"github.com/mfranz/code-gehirn/internal/logger"
 	"github.com/spf13/cobra"
 )
 
@@ -21,7 +22,10 @@ enabling semantic search and LLM-powered summarization via an interactive TUI.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		var err error
 		cfg, err = config.Load(cfgFile)
-		return err
+		if err != nil {
+			return err
+		}
+		return logger.Init(cfg.Log.File)
 	},
 }
 

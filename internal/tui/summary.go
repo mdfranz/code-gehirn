@@ -32,7 +32,7 @@ func newSummaryModel() SummaryModel {
 	return SummaryModel{spinner: sp, loading: true}
 }
 
-func (m SummaryModel) startSummary(query string, store qdrant.Store, llm llms.Model) tea.Cmd {
+func (m *SummaryModel) startSummary(query string, store qdrant.Store, llm llms.Model, vaultPath string, maxTokens int) tea.Cmd {
 	m.query = query
 	return tea.Batch(
 		m.spinner.Tick,
@@ -40,8 +40,8 @@ func (m SummaryModel) startSummary(query string, store qdrant.Store, llm llms.Mo
 			return LogMsg{Message: fmt.Sprintf("Summarizing: %s", query)}
 		},
 		func() tea.Msg {
-			text, err := summarizer.Summarize(context.Background(), store, llm, query, 5)
-			return SummaryMsg{Text: text, Err: err}
+			text, err := summarizer.Summarize(context.Background(), store, llm, query, 5, vaultPath, maxTokens)
+			return SummaryMsg{Query: query, Text: text, Err: err}
 		},
 	)
 }
@@ -50,9 +50,17 @@ func (m SummaryModel) Update(msg tea.Msg) (SummaryModel, tea.Cmd) {
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
 	case SummaryMsg:
+		if msg.Query != m.query {
+			// Stale result from a previous summarization — discard.
+			return m, nil
+		}
 		m.loading = false
 		m.err = msg.Err
 		if msg.Err == nil {
+			text := msg.Text
+			if text == "" {
+				text = "_The model returned an empty response. Try increasing `llm.max_tokens` in your config._"
+			}
 			cmds = append(cmds, func() tea.Msg {
 				return LogMsg{Message: "Summary complete."}
 			})
@@ -60,9 +68,9 @@ func (m SummaryModel) Update(msg tea.Msg) (SummaryModel, tea.Cmd) {
 				glamour.WithStandardStyle("dark"),
 				glamour.WithWordWrap(m.width-4),
 			)
-			content := msg.Text
+			content := text
 			if err == nil {
-				if rendered, rerr := r.Render(msg.Text); rerr == nil {
+				if rendered, rerr := r.Render(text); rerr == nil {
 					content = rendered
 				}
 			}
@@ -115,7 +123,17 @@ func (m SummaryModel) View() string {
 	sb.WriteString(dividerStyle.Render("  " + strings.Repeat("─", m.width-4) + "\n"))
 
 	if m.loading {
-		sb.WriteString("  " + m.spinner.View() + " Generating summary...\n")
+		// Center spinner vertically in the viewport area
+		vpHeight := m.vp.Height
+		if vpHeight < 1 {
+			vpHeight = 1
+		}
+		padLines := vpHeight / 2
+		for i := 0; i < padLines; i++ {
+			sb.WriteString("\n")
+		}
+		line := m.spinner.View() + spinnerStyle.Render("  Generating summary...")
+		sb.WriteString(lipgloss.NewStyle().Width(m.width).Align(lipgloss.Center).Render(line) + "\n")
 	} else if m.err != nil {
 		sb.WriteString(errorStyle.Render("  Error: "+m.err.Error()) + "\n")
 	} else {

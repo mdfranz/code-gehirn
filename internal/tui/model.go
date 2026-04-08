@@ -116,7 +116,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "store":
 			m.store = msg.payload.(qdrant.Store)
 			m.initializing = false
-			m.searchModel = newSearchModel(m.store)
+			m.searchModel = newSearchModel(m.store, float32(m.config.Search.MinScore))
 			m.summaryModel = newSummaryModel()
 			m.searchModel.SetSize(m.width, m.height-1)
 			m.logs = append(m.logs, "Connected to brain.")
@@ -159,7 +159,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.summaryModel = newSummaryModel()
 		m.summaryModel.SetSize(m.width, m.height-1)
 		m.logs = append(m.logs, fmt.Sprintf("Preparing brain to summarize '%s'...", msg.query))
-		return m, m.summaryModel.startSummary(msg.query, m.store, m.llm)
+		return m, m.summaryModel.startSummary(msg.query, m.store, m.llm, m.config.VaultPath, m.config.LLM.MaxTokens)
 	}
 
 	if m.initializing {

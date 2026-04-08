@@ -5,10 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/mfranz/code-gehirn/internal/config"
+	"github.com/mfranz/code-gehirn/internal/logger"
 	"github.com/tmc/langchaingo/embeddings"
 	"github.com/tmc/langchaingo/vectorstores/qdrant"
 )
@@ -53,15 +56,20 @@ func EnsureCollection(ctx context.Context, cfg config.QdrantConfig, vectorSize i
 		req.Header.Set("api-key", cfg.APIKey)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	start := time.Now()
+	resp, err := logger.HTTPClient.Do(req)
+	latency := time.Since(start).Milliseconds()
 	if err != nil {
+		slog.Error("qdrant ensure_collection failed", "collection", cfg.Collection, "vector_size", vectorSize, "latency_ms", latency, "error", err)
 		return fmt.Errorf("connecting to qdrant at %s: %w", cfg.URL, err)
 	}
 	defer resp.Body.Close()
 
 	// 200 = created, 409 = already exists — both are fine
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusConflict {
+		slog.Error("qdrant ensure_collection unexpected status", "collection", cfg.Collection, "status", resp.StatusCode)
 		return fmt.Errorf("qdrant returned unexpected status %d when creating collection %q", resp.StatusCode, cfg.Collection)
 	}
+	slog.Info("qdrant ensure_collection", "collection", cfg.Collection, "vector_size", vectorSize, "status", resp.StatusCode, "latency_ms", latency)
 	return nil
 }

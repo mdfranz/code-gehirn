@@ -2,21 +2,22 @@
 
 `code-gehirn` (German for "code brain") is a CLI tool for semantic search and summarization of your local markdown knowledge bases (e.g., Obsidian vaults, documentation repositories).
 
-It indexes markdown files from a local git repository into a [Qdrant](https://qdrant.tech/) vector database, enabling semantic search and LLM-powered summarization through a modern terminal interface.
+It indexes markdown files from a local repository into a [Qdrant](https://qdrant.tech/) vector database, enabling semantic search and LLM-powered summarization through a modern terminal interface.
 
 ## Features
 
 - **Semantic Search**: Find information based on meaning, not just keywords.
 - **LLM Summarization**: Get concise summaries of search results using various LLM providers.
 - **Interactive TUI**: A beautiful terminal user interface built with [Bubble Tea](https://github.com/charmbracelet/bubbletea).
-- **Git Integration**: Indexes markdown files directly from your local git repositories.
-- **Multi-Provider Support**: Supports multiple embedding and LLM providers (Gemini, Vertex AI, and OpenAI-compatible APIs).
+- **Markdown Preview**: Rich markdown rendering in the TUI using [Glamour](https://github.com/charmbracelet/glamour).
+- **Git Integration**: Indexes markdown files directly from local repositories, skipping internal git data.
+- **Multi-Provider Support**: Supports multiple embedding and LLM providers including Ollama (local), OpenAI, Anthropic, and Google Gemini.
 
 ## Prerequisites
 
 - **Go**: 1.26 or higher.
 - **Qdrant**: A running instance of Qdrant (local Docker container or Qdrant Cloud).
-- **API Keys**: Access to an embedding model and an LLM (e.g., Google Gemini, OpenAI).
+- **API Keys**: Access to an embedding model and an LLM (unless using Ollama).
 
 ## Installation
 
@@ -38,7 +39,7 @@ It indexes markdown files from a local git repository into a [Qdrant](https://qd
 
 ## Configuration
 
-`code-gehirn` looks for a configuration file at `$HOME/.config/code-gehirn/config.yaml` or `./config.yaml`.
+`code-gehirn` looks for a configuration file at `~/.config/code-gehirn/config.yaml` or `./config.yaml`.
 
 Copy the example configuration and fill in your details:
 ```bash
@@ -66,10 +67,11 @@ Launch the full interactive experience:
 ./code-gehirn tui
 ```
 In the TUI:
-- Type to search.
-- Use arrow keys or `j`/`k` to navigate results.
-- Press `Enter` to select a result and view a summary.
-- Press `q` or `Ctrl+C` to quit.
+- **Search**: Type to search with real-time feedback.
+- **Navigate**: Use arrow keys or `j`/`k` to navigate results.
+- **Preview**: View rendered markdown on the right/bottom as you navigate.
+- **Summarize**: Press `Enter` to generate an LLM summary of the search results.
+- **Quit**: Press `q` or `Ctrl+C` to exit.
 
 ## License
 

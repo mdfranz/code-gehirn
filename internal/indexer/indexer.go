@@ -3,9 +3,11 @@ package indexer
 import (
 	"context"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/tmc/langchaingo/documentloaders"
 	"github.com/tmc/langchaingo/schema"
@@ -44,11 +46,14 @@ func Run(ctx context.Context, repoPath string, store qdrant.Store, progressFn fu
 			return nil
 		}
 
+		rel, _ := filepath.Rel(repoPath, path)
+		start := time.Now()
 		if _, err := store.AddDocuments(ctx, docs); err != nil {
+			slog.Error("qdrant upsert failed", "file", rel, "chunks", len(docs), "error", err)
 			return err
 		}
+		slog.Info("qdrant upsert", "file", rel, "chunks", len(docs), "latency_ms", time.Since(start).Milliseconds())
 		if progressFn != nil {
-			rel, _ := filepath.Rel(repoPath, path)
 			progressFn(rel, len(docs))
 		}
 		return nil

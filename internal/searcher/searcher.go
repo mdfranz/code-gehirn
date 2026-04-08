@@ -2,7 +2,9 @@ package searcher
 
 import (
 	"context"
+	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/tmc/langchaingo/schema"
 	"github.com/tmc/langchaingo/vectorstores"
@@ -17,14 +19,18 @@ type Result struct {
 	Score float32
 }
 
-// Search performs a similarity search and returns the top-N results.
-func Search(ctx context.Context, store qdrant.Store, query string, topN int) ([]Result, error) {
+// Search performs a similarity search and returns the top-N results above minScore.
+func Search(ctx context.Context, store qdrant.Store, query string, topN int, minScore float32) ([]Result, error) {
+	start := time.Now()
 	docs, err := store.SimilaritySearch(ctx, query, topN,
-		vectorstores.WithScoreThreshold(0.0),
+		vectorstores.WithScoreThreshold(minScore),
 	)
+	latency := time.Since(start).Milliseconds()
 	if err != nil {
+		slog.Error("qdrant search failed", "query", query, "top_n", topN, "min_score", minScore, "latency_ms", latency, "error", err)
 		return nil, err
 	}
+	slog.Info("qdrant search", "query", query, "top_n", topN, "min_score", minScore, "results", len(docs), "latency_ms", latency)
 
 	results := make([]Result, len(docs))
 	for i, d := range docs {

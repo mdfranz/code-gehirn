@@ -12,6 +12,7 @@ import (
 )
 
 var searchTopN int
+var searchThreshold float64
 
 var searchCmd = &cobra.Command{
 	Use:   "search <query>",
@@ -30,7 +31,7 @@ var searchCmd = &cobra.Command{
 			return fmt.Errorf("creating store: %w", err)
 		}
 
-		results, err := searcher.Search(ctx, qdrantStore, query, searchTopN)
+		results, err := searcher.Search(ctx, qdrantStore, query, searchTopN, float32(searchThreshold))
 		if err != nil {
 			return err
 		}
@@ -54,4 +55,5 @@ var searchCmd = &cobra.Command{
 
 func init() {
 	searchCmd.Flags().IntVarP(&searchTopN, "top", "n", 5, "number of results to return")
+	searchCmd.Flags().Float64VarP(&searchThreshold, "threshold", "t", 0.0, "minimum similarity score (0.0–1.0)")
 }
