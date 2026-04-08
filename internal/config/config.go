@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -39,7 +40,9 @@ func Load(cfgFile string) (*Config, error) {
 	} else {
 		v.SetConfigName("config")
 		v.SetConfigType("yaml")
-		v.AddConfigPath("$HOME/.config/code-gehirn")
+		if home, err := os.UserHomeDir(); err == nil {
+			v.AddConfigPath(home + "/.config/code-gehirn")
+		}
 		v.AddConfigPath(".")
 	}
 

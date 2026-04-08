@@ -2,6 +2,7 @@ package summarizer
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/tmc/langchaingo/chains"
 	"github.com/tmc/langchaingo/llms"
@@ -15,11 +16,23 @@ func Summarize(ctx context.Context, store qdrant.Store, llm llms.Model, query st
 	retriever := vectorstores.ToRetriever(store, topK)
 	qaChain := chains.NewRetrievalQAFromLLM(llm, retriever)
 
-	answer, err := chains.Run(ctx, qaChain, query,
-		chains.WithMaxTokens(1024),
-	)
+	res, err := chains.Call(ctx, qaChain, map[string]any{
+		"query": query,
+	}, chains.WithMaxTokens(1024))
 	if err != nil {
 		return "", err
+	}
+
+	answer, ok := res["text"].(string)
+	if !ok {
+		// Fallback to other common output keys if "text" is not present
+		if a, ok := res["answer"].(string); ok {
+			return a, nil
+		}
+		if a, ok := res["output"].(string); ok {
+			return a, nil
+		}
+		return fmt.Sprintf("%v", res), nil
 	}
 	return answer, nil
 }

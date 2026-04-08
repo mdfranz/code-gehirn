@@ -54,39 +54,32 @@ type initStageMsg struct {
 }
 
 func (m AppModel) Init() tea.Cmd {
-	return m.initEmbedderCmd()
+	return tea.Batch(
+		func() tea.Msg {
+			return LogMsg{Message: fmt.Sprintf("Creating %s embedder (%s)...", m.config.Embedding.Provider, m.config.Embedding.Model)}
+		},
+		m.initEmbedderCmd(),
+	)
 }
 
 func (m AppModel) initEmbedderCmd() tea.Cmd {
 	return func() tea.Msg {
-		msg := fmt.Sprintf("Creating %s embedder (%s)...", m.config.Embedding.Provider, m.config.Embedding.Model)
 		embedder, err := provider.NewEmbedder(m.config.Embedding)
-		if err == nil {
-			msg += " success."
-		}
-		return initStageMsg{stage: "embedder", payload: embedder, err: err, detail: msg}
+		return initStageMsg{stage: "embedder", payload: embedder, err: err}
 	}
 }
 
 func (m AppModel) initLLMCmd() tea.Cmd {
 	return func() tea.Msg {
-		msg := fmt.Sprintf("Connecting to %s LLM (%s)...", m.config.LLM.Provider, m.config.LLM.Model)
 		llm, err := provider.NewLLM(m.config.LLM)
-		if err == nil {
-			msg += " success."
-		}
-		return initStageMsg{stage: "llm", payload: llm, err: err, detail: msg}
+		return initStageMsg{stage: "llm", payload: llm, err: err}
 	}
 }
 
 func (m AppModel) initStoreCmd() tea.Cmd {
 	return func() tea.Msg {
-		msg := fmt.Sprintf("Connecting to Qdrant (%s)...", m.config.Qdrant.URL)
 		qdrantStore, err := store.New(m.config.Qdrant, m.embedder)
-		if err == nil {
-			msg += " success."
-		}
-		return initStageMsg{stage: "store", payload: qdrantStore, err: err, detail: msg}
+		return initStageMsg{stage: "store", payload: qdrantStore, err: err}
 	}
 }
 
@@ -98,22 +91,28 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 
-		if msg.detail != "" {
-			// Replace last log if it starts with the same text to avoid duplication
-			if len(m.logs) > 0 && strings.Contains(msg.detail, "success") {
-				m.logs[len(m.logs)-1] = msg.detail
-			} else {
-				m.logs = append(m.logs, msg.detail)
-			}
+		// Mark previous step as success
+		if len(m.logs) > 0 {
+			m.logs[len(m.logs)-1] += " success."
 		}
 
 		switch msg.stage {
 		case "embedder":
 			m.embedder = msg.payload.(embeddings.Embedder)
-			return m, m.initLLMCmd()
+			return m, tea.Batch(
+				func() tea.Msg {
+					return LogMsg{Message: fmt.Sprintf("Connecting to %s LLM (%s)...", m.config.LLM.Provider, m.config.LLM.Model)}
+				},
+				m.initLLMCmd(),
+			)
 		case "llm":
 			m.llm = msg.payload.(llms.Model)
-			return m, m.initStoreCmd()
+			return m, tea.Batch(
+				func() tea.Msg {
+					return LogMsg{Message: fmt.Sprintf("Connecting to Qdrant (%s)...", m.config.Qdrant.URL)}
+				},
+				m.initStoreCmd(),
+			)
 		case "store":
 			m.store = msg.payload.(qdrant.Store)
 			m.initializing = false
@@ -153,9 +152,6 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.activeScreen = screenSearch
 				return m, nil
 			}
-		}
-		if m.initializing {
-			return m, nil
 		}
 
 	case switchToSummaryMsg:
@@ -207,6 +203,12 @@ func (m AppModel) View() string {
 		}
 	}
 
+	// Pad view to fill height (minus 1 line for status bar)
+	viewHeight := lipgloss.Height(view)
+	if viewHeight < m.height-1 {
+		view += strings.Repeat("\n", m.height-1-viewHeight)
+	}
+
 	// Status bar
 	status := "Ready"
 	if m.initializing {
@@ -216,7 +218,7 @@ func (m AppModel) View() string {
 	}
 	sb := statusBarStyle.Width(m.width).Render(statusTextStyle.Render(" [brain] " + status))
 
-	return lipgloss.JoinVertical(lipgloss.Top,
+	return lipgloss.JoinVertical(lipgloss.Left,
 		view,
 		sb,
 	)

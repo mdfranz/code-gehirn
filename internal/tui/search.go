@@ -34,6 +34,7 @@ func newSearchModel(store qdrant.Store) SearchModel {
 	ti := textinput.New()
 	ti.Placeholder = "Type to search your markdown knowledge base..."
 	ti.Focus()
+	ti.Width = 60
 
 	sp := spinner.New()
 	sp.Spinner = spinner.MiniDot
@@ -55,6 +56,11 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		// Filter out terminal control sequences/OSC responses
+		if strings.HasPrefix(msg.String(), "]11;") || strings.HasPrefix(msg.String(), "\033") {
+			return m, nil
+		}
+
 		switch msg.String() {
 		case "up", "k":
 			if m.cursor > 0 {
@@ -164,7 +170,7 @@ func (m *SearchModel) SetSize(w, h int) {
 	m.preview = viewport.New(w-2, previewHeight)
 
 	r, err := glamour.NewTermRenderer(
-		glamour.WithAutoStyle(),
+		glamour.WithStandardStyle("dark"),
 		glamour.WithWordWrap(w-4),
 	)
 	if err == nil {
@@ -197,17 +203,23 @@ func (m SearchModel) View() string {
 
 	// Results list
 	if m.status != "" {
-		sb.WriteString(dimStyle.Render(fmt.Sprintf("  Results (%s)\n", m.status)))
+		sb.WriteString(dimStyle.Render(fmt.Sprintf("  Results (%s)", m.status)) + "\n")
 	} else {
-		sb.WriteString(dimStyle.Render("  Results\n"))
+		sb.WriteString(dimStyle.Render("  Results") + "\n")
 	}
 
-	maxItems := 12
-	for i, r := range m.results {
-		if i >= maxItems {
-			sb.WriteString(dimStyle.Render(fmt.Sprintf("  ... and %d more\n", len(m.results)-maxItems)))
-			break
-		}
+	maxVisible := 10
+	start := 0
+	if m.cursor >= maxVisible {
+		start = m.cursor - maxVisible + 1
+	}
+
+	if start > 0 {
+		sb.WriteString(dimStyle.Render(fmt.Sprintf("  ... %d more above", start)) + "\n")
+	}
+
+	for i := start; i < len(m.results) && i < start+maxVisible; i++ {
+		r := m.results[i]
 		label := fmt.Sprintf("[%d] %s", i+1, r.Title)
 		pathStr := ""
 		if r.Path != "" {
@@ -219,6 +231,10 @@ func (m SearchModel) View() string {
 		} else {
 			sb.WriteString(normalItemStyle.Render("    "+label) + pathStr + "\n")
 		}
+	}
+
+	if start+maxVisible < len(m.results) {
+		sb.WriteString(dimStyle.Render(fmt.Sprintf("  ... %d more below", len(m.results)-(start+maxVisible))) + "\n")
 	}
 
 	// Preview pane
