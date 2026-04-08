@@ -1,0 +1,21 @@
+qdrant:
+  url: "http://localhost:6333"
+  collection: "code-gehirn"
+  api_key: ""  # optional, for Qdrant Cloud
+
+llm:
+  provider: "openai"  # ollama | openai | anthropic | googleai
+  model: "gpt-5-mini"
+  api_key: ""         # required for openai / anthropic / googleai
+  base_url: ""        # optional override (e.g. for local OpenAI-compat server)
+
+embedding:
+  provider: "openai"  # ollama | openai
+  model: "text-embedding-3-small"
+  api_key: ""         # required for openai
+
+# All values can be overridden with GEHIRN_ env vars, e.g.:
+#   GEHIRN_LLM_PROVIDER=anthropic
+#   GEHIRN_LLM_API_KEY=sk-ant-...
+#   GEHIRN_EMBEDDING_PROVIDER=openai
+#   GEHIRN_EMBEDDING_API_KEY=sk-...
