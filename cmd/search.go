@@ -31,6 +31,13 @@ var searchCmd = &cobra.Command{
 			return fmt.Errorf("creating store: %w", err)
 		}
 
+		if !cmd.Flags().Changed("top") {
+			searchTopN = cfg.Search.MaxResults
+		}
+		if !cmd.Flags().Changed("threshold") {
+			searchThreshold = cfg.Search.MinScore
+		}
+
 		results, err := searcher.Search(ctx, qdrantStore, query, searchTopN, float32(searchThreshold))
 		if err != nil {
 			return err

@@ -1,7 +1,9 @@
 package config
 
 import (
+	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -28,11 +30,13 @@ type EmbeddingConfig struct {
 }
 
 type SearchConfig struct {
-	MinScore float64 `mapstructure:"min_score"`
+	MinScore   float64 `mapstructure:"min_score"`
+	MaxResults int     `mapstructure:"max_results"`
 }
 
 type LogConfig struct {
-	File string `mapstructure:"file"`
+	APIFile string `mapstructure:"api_file"`
+	AppFile string `mapstructure:"app_file"`
 }
 
 type Config struct {
@@ -63,16 +67,24 @@ func Load(cfgFile string) (*Config, error) {
 	v.AutomaticEnv()
 
 	// Defaults
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "unknown"
+	}
+	collectionName := fmt.Sprintf("code-gehirn-%s-%s", hostname, runtime.GOOS)
+
 	v.SetDefault("qdrant.url", "http://localhost:6333")
-	v.SetDefault("qdrant.collection", "code-gehirn")
+	v.SetDefault("qdrant.collection", collectionName)
 	v.SetDefault("llm.provider", "openai")
 	v.SetDefault("llm.model", "gpt-5-mini")
 	v.SetDefault("llm.max_tokens", 16384)
 	v.SetDefault("embedding.provider", "openai")
 	v.SetDefault("embedding.model", "text-embedding-3-small")
 	v.SetDefault("search.min_score", 0.0)
+	v.SetDefault("search.max_results", 15)
 	if home, err := os.UserHomeDir(); err == nil {
-		v.SetDefault("log.file", home+"/.local/share/code-gehirn/api.log")
+		v.SetDefault("log.api_file", home+"/.local/share/code-gehirn/api.log")
+		v.SetDefault("log.app_file", home+"/.local/share/code-gehirn/app.log")
 	}
 
 	if err := v.ReadInConfig(); err != nil {
@@ -84,6 +96,15 @@ func Load(cfgFile string) (*Config, error) {
 	var cfg Config
 	if err := v.Unmarshal(&cfg); err != nil {
 		return nil, err
+	}
+	// Expand ~ in log paths (Viper does not expand tilde in config file or env var values).
+	if home, err := os.UserHomeDir(); err == nil {
+		if strings.HasPrefix(cfg.Log.APIFile, "~/") {
+			cfg.Log.APIFile = home + cfg.Log.APIFile[1:]
+		}
+		if strings.HasPrefix(cfg.Log.AppFile, "~/") {
+			cfg.Log.AppFile = home + cfg.Log.AppFile[1:]
+		}
 	}
 	if cfg.VaultPath == "" {
 		wd, err := os.Getwd()

@@ -25,7 +25,7 @@ enabling semantic search and LLM-powered summarization via an interactive TUI.`,
 		if err != nil {
 			return err
 		}
-		return logger.Init(cfg.Log.File)
+		return logger.Init(cfg.Log.AppFile, cfg.Log.APIFile)
 	},
 }
 

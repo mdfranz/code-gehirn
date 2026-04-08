@@ -4,6 +4,8 @@ import "github.com/mfranz/code-gehirn/internal/searcher"
 
 // SearchResultMsg is dispatched when an async search completes.
 type SearchResultMsg struct {
+	Query   string
+	Request uint64
 	Results []searcher.Result
 	Err     error
 }
@@ -17,9 +19,9 @@ type SummaryMsg struct {
 	Err   error
 }
 
-// LogMsg is dispatched to update the status bar or log section.
-type LogMsg struct {
-	Message string
+// StatusMsg updates the status bar text in the root AppModel.
+type StatusMsg struct {
+	Text string
 }
 
 // doSearchMsg triggers an actual search after the debounce timer fires.

@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -37,9 +38,6 @@ func (m *SummaryModel) startSummary(query string, store qdrant.Store, llm llms.M
 	return tea.Batch(
 		m.spinner.Tick,
 		func() tea.Msg {
-			return LogMsg{Message: fmt.Sprintf("Summarizing: %s", query)}
-		},
-		func() tea.Msg {
 			text, err := summarizer.Summarize(context.Background(), store, llm, query, 5, vaultPath, maxTokens)
 			return SummaryMsg{Query: query, Text: text, Err: err}
 		},
@@ -61,12 +59,17 @@ func (m SummaryModel) Update(msg tea.Msg) (SummaryModel, tea.Cmd) {
 			if text == "" {
 				text = "_The model returned an empty response. Try increasing `llm.max_tokens` in your config._"
 			}
-			cmds = append(cmds, func() tea.Msg {
-				return LogMsg{Message: "Summary complete."}
-			})
+			slog.Info("summary complete", "query", msg.Query)
+			cmds = append(cmds, func() tea.Msg { return StatusMsg{Text: "Summary complete"} })
 			r, err := glamour.NewTermRenderer(
-				glamour.WithStandardStyle("dark"),
-				glamour.WithWordWrap(m.width-4),
+				glamour.WithAutoStyle(),
+				glamour.WithWordWrap(func() int {
+					w := m.width - 4
+					if w < 20 {
+						return 20
+					}
+					return w
+				}()),
 			)
 			content := text
 			if err == nil {
@@ -77,9 +80,8 @@ func (m SummaryModel) Update(msg tea.Msg) (SummaryModel, tea.Cmd) {
 			m.vp.SetContent(content)
 			m.vp.GotoTop()
 		} else {
-			cmds = append(cmds, func() tea.Msg {
-				return LogMsg{Message: "Summary failed: " + msg.Err.Error()}
-			})
+			slog.Error("summary failed", "query", msg.Query, "error", msg.Err)
+			cmds = append(cmds, func() tea.Msg { return StatusMsg{Text: "Summary failed"} })
 		}
 		return m, tea.Batch(cmds...)
 
