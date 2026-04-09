@@ -68,7 +68,7 @@ func summarizeFromFiles(ctx context.Context, store qdrant.Store, llm llms.Model,
 
 	context := strings.Join(parts, "\n\n---\n\n")
 	prompt := fmt.Sprintf(
-		"Use the following documents to answer the question. "+
+		"Use the following documents to answer the question or provide info on the topic keywords. "+
 			"If the answer is not in the documents, say so.\n\n"+
 			"%s\n\n"+
 			"Question: %s\nAnswer:",
