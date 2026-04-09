@@ -41,4 +41,5 @@ func init() {
 	rootCmd.AddCommand(indexCmd)
 	rootCmd.AddCommand(searchCmd)
 	rootCmd.AddCommand(tuiCmd)
+	rootCmd.AddCommand(webCmd)
 }

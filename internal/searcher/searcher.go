@@ -13,10 +13,10 @@ import (
 
 // Result wraps a schema.Document with a display title derived from metadata.
 type Result struct {
-	Doc   schema.Document
-	Title string
-	Path  string
-	Score float32
+	Doc   schema.Document `json:"doc"`
+	Title string          `json:"title"`
+	Path  string          `json:"path"`
+	Score float32         `json:"score"`
 }
 
 // Search performs a similarity search and returns the top-N results above minScore.
