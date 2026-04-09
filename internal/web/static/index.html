@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>code-gehirn</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --primary: #5e81ac;
+            --background-alt: #f8f9fa;
+        }
+        body {
+            padding: 1rem;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .main-container {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 1.5rem;
+            overflow: hidden;
+            margin-top: 1rem;
+        }
+        .left-pane {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-right: 1px solid #eee;
+            padding-right: 1rem;
+        }
+        .right-pane {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: white;
+            padding-left: 1rem;
+        }
+        .scrollable {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+        }
+        .result-item {
+            padding: 1rem;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+        }
+        .result-item:hover {
+            background-color: var(--background-alt);
+        }
+        .result-item.selected {
+            background-color: #f0f4f8;
+            border-left: 4px solid var(--primary);
+        }
+        .summary-box {
+            background-color: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border-left: 5px solid var(--primary);
+            margin-bottom: 1rem;
+        }
+        .content-view {
+            line-height: 1.6;
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid #ccc;
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 1s linear infinite;
+            margin-right: 0.5rem;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        header {
+            margin-bottom: 0;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #eee;
+        }
+        .pane-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 10;
+            padding: 0.5rem 0;
+        }
+    </style>
+</head>
+<body x-data="app()">
+    <header>
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <h1 style="color: var(--primary); margin: 0;">code-gehirn</h1>
+            <p style="margin: 0; font-size: 0.9rem; color: #666;">Semantic search and summarization</p>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="left-pane">
+            <section style="margin-bottom: 1rem;">
+                <form @submit.prevent="search()">
+                    <div class="grid" style="margin-bottom: 0.5rem;">
+                        <input type="text" x-model="query" placeholder="Search knowledge base..." required style="margin-bottom: 0;">
+                        <button type="submit" :busy="loading" style="margin-bottom: 0;">Search</button>
+                    </div>
+                </form>
+                <div x-show="results.length > 0" style="margin-top: 1rem;">
+                    <button class="secondary outline w-100" @click="summarize()" :disabled="loading" style="width: 100%;">
+                        Summarize Results
+                    </button>
+                </div>
+            </section>
+
+            <div class="scrollable">
+                <template x-for="res in results">
+                    <div class="result-item" :class="{ 'selected': selectedPath === res.path }" @click="selectResult(res.path)">
+                        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                            <strong x-text="res.title" style="font-size: 0.95rem;"></strong>
+                            <small x-text="res.score.toFixed(2)" style="color: #888;"></small>
+                        </div>
+                        <p x-text="res.path" style="font-size: 0.75rem; color: #666; margin: 0.25rem 0;"></p>
+                    </div>
+                </template>
+                <div x-show="!loading && results.length === 0 && searched">
+                    <p>No results found.</p>
+                </div>
+            </div>
+
+            <section x-show="loading" style="padding-top: 1rem;">
+                <p><span class="loading-spinner"></span> <span x-text="status" style="font-size: 0.9rem;"></span></p>
+            </section>
+        </div>
+
+        <div class="right-pane">
+            <div class="pane-header">
+                <h3 style="margin: 0;" x-text="rightPaneTitle"></h3>
+                <div x-show="summary || fileContent">
+                     <button class="outline secondary" @click="clearRightPane()" style="padding: 2px 10px; font-size: 0.8rem; margin: 0;">Clear</button>
+                </div>
+            </div>
+
+            <div class="scrollable">
+                <!-- Global Summary View -->
+                <div x-show="summary" class="summary-box">
+                    <div x-html="marked.parse(summary)"></div>
+                </div>
+
+                <!-- File Content Preview -->
+                <div x-show="fileContent && !summary" class="content-view">
+                    <div x-html="marked.parse(fileContent)"></div>
+                </div>
+
+                <div x-show="!summary && !fileContent && !loading" style="display: flex; height: 100%; align-items: center; justify-content: center; color: #aaa;">
+                    <p>Select a result to preview or click Summarize</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function app() {
+            return {
+                query: '',
+                results: [],
+                summary: '',
+                fileContent: '',
+                loading: false,
+                status: '',
+                searched: false,
+                selectedPath: '',
+
+                get rightPaneTitle() {
+                    if (this.summary) return 'Global Summary';
+                    if (this.selectedPath) return this.selectedPath;
+                    return 'Preview';
+                },
+
+                async search() {
+                    this.loading = true;
+                    this.status = 'Searching...';
+                    this.summary = '';
+                    this.fileContent = '';
+                    this.searched = true;
+                    this.selectedPath = '';
+                    try {
+                        const resp = await fetch(`/api/search?q=${encodeURIComponent(this.query)}`);
+                        if (!resp.ok) throw new Error('Search failed');
+                        this.results = await resp.json();
+                    } catch (e) {
+                        alert(e.message);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async selectResult(path) {
+                    this.selectedPath = path;
+                    this.summary = ''; // Clear summary to show content
+                    this.loading = true;
+                    this.status = 'Loading file content...';
+                    try {
+                        const resp = await fetch(`/api/content?path=${encodeURIComponent(path)}`);
+                        if (!resp.ok) throw new Error('Failed to load file content');
+                        this.fileContent = await resp.text();
+                    } catch (e) {
+                        alert(e.message);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async summarize() {
+                    this.loading = true;
+                    this.status = 'Generating summary...';
+                    this.summary = '';
+                    this.fileContent = ''; // Clear content to show summary
+                    try {
+                        const resp = await fetch(`/api/summarize?q=${encodeURIComponent(this.query)}`);
+                        if (!resp.ok) throw new Error('Summarization failed');
+                        const data = await resp.json();
+                        this.summary = data.summary;
+                    } catch (e) {
+                        alert(e.message);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                clearRightPane() {
+                    this.summary = '';
+                    this.fileContent = '';
+                    this.selectedPath = '';
+                }
+            }
+        }
+    </script>
+</body>
+</html>
