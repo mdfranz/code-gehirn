@@ -45,13 +45,13 @@ mdfranz@lenovo-cr14p-arm:~/github/cheetsheetz$ ~/bin/code-gehirn search "agno"
 
 ### TUI
 
-![TUI Search](tui-search.png)
-![TUI Summary](tui-summary.png)
+![TUI Search](assets/tui-search.png)
+![TUI Summary](assets/tui-summary.png)
 
 ### Web
 
-![Web Search](web-search.png)
-![Web Summary](web-summary.png)
+![Web Search](assets/web-search.png)
+![Web Summary](assets/web-summary.png)
 
 
 
