@@ -14,9 +14,10 @@ type SearchResultMsg struct {
 // Query must match SummaryModel.query or the message is a stale result and
 // should be discarded.
 type SummaryMsg struct {
-	Query string
-	Text  string
-	Err   error
+	Query   string
+	Request uint64
+	Text    string
+	Err     error
 }
 
 // StatusMsg updates the status bar text in the root AppModel.

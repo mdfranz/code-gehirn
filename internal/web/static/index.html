@@ -9,68 +9,232 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         :root {
-            --primary: #5e81ac;
-            --background-alt: #f8f9fa;
+            --primary: #1f6feb;
+            --primary-soft: #e7f0ff;
+            --accent: #0d9488;
+            --bg: #eef3f8;
+            --surface: #ffffff;
+            --surface-muted: #f7f9fc;
+            --text: #0f172a;
+            --text-muted: #475569;
+            --border: #d8e0eb;
+            --danger: #b42318;
+            --danger-soft: #ffefef;
+            --radius-sm: 0.5rem;
+            --radius-md: 0.875rem;
+            --radius-lg: 1rem;
+            --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.05);
+            --shadow-md: 0 8px 20px rgb(15 23 42 / 0.08);
+            --space-1: 0.25rem;
+            --space-2: 0.5rem;
+            --space-3: 0.75rem;
+            --space-4: 1rem;
+            --space-5: 1.5rem;
+            --space-6: 2rem;
         }
+
+        [x-cloak] {
+            display: none !important;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            padding: 1rem;
-            height: 100vh;
+            margin: 0;
+            min-height: 100svh;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
+            background:
+                radial-gradient(circle at 0% 0%, #f8fbff 0%, transparent 40%),
+                linear-gradient(180deg, #f3f7fb 0%, var(--bg) 100%);
+            color: var(--text);
+            padding: var(--space-4);
+            font-family: "Avenir Next", "Segoe UI", sans-serif;
         }
+
+        .app-shell {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            max-width: 1600px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .topbar {
+            background: color-mix(in srgb, var(--surface) 92%, #ffffff 8%);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-sm);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4) var(--space-5);
+        }
+
+        .topbar-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: var(--space-3);
+        }
+
+        .brand {
+            margin: 0;
+            color: var(--primary);
+            font-size: clamp(1.4rem, 2.2vw, 2rem);
+            letter-spacing: 0.01em;
+        }
+
+        .tagline {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
         .main-container {
             flex: 1;
             display: grid;
-            grid-template-columns: 400px 1fr;
-            gap: 1.5rem;
-            overflow: hidden;
-            margin-top: 1rem;
+            grid-template-columns: minmax(320px, 36%) minmax(0, 1fr);
+            gap: var(--space-4);
+            min-height: 0;
+            margin-top: var(--space-4);
         }
+
         .left-pane {
             display: flex;
             flex-direction: column;
-            overflow: hidden;
-            border-right: 1px solid #eee;
-            padding-right: 1rem;
+            min-height: 0;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            padding: var(--space-4);
+            gap: var(--space-4);
         }
+
         .right-pane {
             display: flex;
             flex-direction: column;
-            overflow: hidden;
-            background: white;
-            padding-left: 1rem;
+            min-height: 0;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            padding: var(--space-4);
         }
+
+        .search-area {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-3);
+        }
+
+        .search-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: var(--space-2);
+            margin: 0;
+        }
+
+        .search-row input,
+        .search-row button {
+            margin-bottom: 0;
+        }
+
+        .full-width {
+            width: 100%;
+            margin-bottom: 0;
+        }
+
+        .status-banner {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-2) var(--space-3);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            background: var(--surface-muted);
+        }
+
+        .status-banner.error {
+            border-color: #f6c0c0;
+            color: var(--danger);
+            background: var(--danger-soft);
+            justify-content: space-between;
+        }
+
         .scrollable {
             flex: 1;
             overflow-y: auto;
-            padding-right: 0.5rem;
+            min-height: 0;
+            padding-right: var(--space-2);
         }
+
         .result-item {
-            padding: 1rem;
-            border-bottom: 1px solid #eee;
+            padding: var(--space-4);
+            border: 1px solid var(--border);
             cursor: pointer;
-            transition: all 0.2s;
-            border-radius: 4px;
-            margin-bottom: 0.5rem;
+            transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+            border-radius: var(--radius-md);
+            margin-bottom: var(--space-2);
+            background: var(--surface);
+            box-shadow: var(--shadow-sm);
         }
+
         .result-item:hover {
-            background-color: var(--background-alt);
+            transform: translateY(-1px);
+            border-color: #b9c7d8;
+            box-shadow: 0 10px 24px rgb(15 23 42 / 0.09);
         }
+
         .result-item.selected {
-            background-color: #f0f4f8;
-            border-left: 4px solid var(--primary);
+            border-color: var(--primary);
+            background: var(--primary-soft);
+            box-shadow: 0 0 0 2px rgb(31 111 235 / 0.15);
         }
+
+        .result-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: var(--space-2);
+        }
+
+        .result-title {
+            margin: 0;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #0b223f;
+            word-break: break-word;
+        }
+
+        .result-score {
+            color: #64748b;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .result-path {
+            margin: var(--space-2) 0 0;
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            word-break: break-all;
+        }
+
         .summary-box {
-            background-color: #f8f9fa;
-            padding: 1.5rem;
-            border-radius: 8px;
-            border-left: 5px solid var(--primary);
-            margin-bottom: 1rem;
+            background: linear-gradient(180deg, #f9fbff 0%, #f3f8ff 100%);
+            padding: var(--space-5);
+            border-radius: var(--radius-md);
+            border: 1px solid #d2e5ff;
+            margin-bottom: var(--space-3);
+            box-shadow: var(--shadow-sm);
         }
-        .content-view {
-            line-height: 1.6;
-        }
+
         .loading-spinner {
             display: inline-block;
             width: 1rem;
@@ -79,94 +243,227 @@
             border-radius: 50%;
             border-top-color: var(--primary);
             animation: spin 1s linear infinite;
-            margin-right: 0.5rem;
+            margin-right: var(--space-2);
         }
+
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-        header {
-            margin-bottom: 0;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid #eee;
-        }
+
         .pane-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1rem;
+            gap: var(--space-3);
+            margin-bottom: var(--space-3);
             position: sticky;
             top: 0;
-            background: white;
+            background: color-mix(in srgb, var(--surface) 93%, white 7%);
+            border-bottom: 1px solid var(--border);
             z-index: 10;
-            padding: 0.5rem 0;
+            padding: var(--space-2) 0;
+            backdrop-filter: blur(6px);
+        }
+
+        .pane-title {
+            margin: 0;
+            font-size: 1.05rem;
+            max-width: 85%;
+            color: #0b223f;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .clear-btn {
+            padding: 0.25rem 0.65rem;
+            font-size: 0.8rem;
+            margin: 0;
+            border-radius: var(--radius-sm);
+        }
+
+        .empty-state {
+            display: flex;
+            height: 100%;
+            align-items: center;
+            justify-content: center;
+            color: #8090a5;
+            text-align: center;
+            padding: var(--space-6);
+        }
+
+        .markdown {
+            line-height: 1.7;
+            color: #16243a;
+            max-width: 78ch;
+        }
+
+        .markdown h1,
+        .markdown h2,
+        .markdown h3,
+        .markdown h4 {
+            color: #0f2340;
+            margin-top: var(--space-5);
+            margin-bottom: var(--space-3);
+            line-height: 1.3;
+        }
+
+        .markdown p,
+        .markdown ul,
+        .markdown ol,
+        .markdown blockquote,
+        .markdown pre {
+            margin-bottom: var(--space-4);
+        }
+
+        .markdown pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: var(--radius-sm);
+            padding: var(--space-3);
+            overflow-x: auto;
+        }
+
+        .markdown code {
+            background: #eef2f7;
+            color: #253347;
+            border-radius: 0.35rem;
+            padding: 0.08rem 0.35rem;
+            font-size: 0.92em;
+        }
+
+        .markdown pre code {
+            background: transparent;
+            color: inherit;
+            padding: 0;
+        }
+
+        .markdown blockquote {
+            margin-left: 0;
+            border-left: 4px solid #b9d1ff;
+            padding-left: var(--space-3);
+            color: #334155;
+        }
+
+        @media (max-width: 1100px) {
+            .main-container {
+                grid-template-columns: 320px minmax(0, 1fr);
+            }
+        }
+
+        @media (max-width: 900px) {
+            body {
+                padding: var(--space-3);
+            }
+
+            .topbar {
+                padding: var(--space-3) var(--space-4);
+            }
+
+            .topbar-head {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--space-1);
+            }
+
+            .tagline {
+                white-space: normal;
+            }
+
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+
+            .left-pane {
+                max-height: min(50svh, 520px);
+            }
+        }
+
+        @media (max-width: 640px) {
+            .search-row {
+                grid-template-columns: 1fr;
+            }
+
+            .pane-title {
+                max-width: 70%;
+            }
+
+            .left-pane,
+            .right-pane {
+                padding: var(--space-3);
+            }
         }
     </style>
 </head>
 <body x-data="app()">
-    <header>
-        <div style="display: flex; justify-content: space-between; align-items: baseline;">
-            <h1 style="color: var(--primary); margin: 0;">code-gehirn</h1>
-            <p style="margin: 0; font-size: 0.9rem; color: #666;">Semantic search and summarization</p>
-        </div>
-    </header>
+    <div class="app-shell">
+        <header class="topbar">
+            <div class="topbar-head">
+                <h1 class="brand">code-gehirn</h1>
+                <p class="tagline">Semantic search and summarization</p>
+            </div>
+        </header>
 
-    <div class="main-container">
-        <div class="left-pane">
-            <section style="margin-bottom: 1rem;">
-                <form @submit.prevent="search()">
-                    <div class="grid" style="margin-bottom: 0.5rem;">
-                        <input type="text" x-model="query" placeholder="Search knowledge base..." required style="margin-bottom: 0;">
-                        <button type="submit" :busy="loading" style="margin-bottom: 0;">Search</button>
-                    </div>
-                </form>
-                <div x-show="results.length > 0" style="margin-top: 1rem;">
-                    <button class="secondary outline w-100" @click="summarize()" :disabled="loading" style="width: 100%;">
-                        Summarize Results
-                    </button>
-                </div>
-            </section>
-
-            <div class="scrollable">
-                <template x-for="res in results">
-                    <div class="result-item" :class="{ 'selected': selectedPath === res.path }" @click="selectResult(res.path)">
-                        <div style="display: flex; justify-content: space-between; align-items: baseline;">
-                            <strong x-text="res.title" style="font-size: 0.95rem;"></strong>
-                            <small x-text="res.score.toFixed(2)" style="color: #888;"></small>
+        <div class="main-container">
+            <div class="left-pane">
+                <section class="search-area">
+                    <form @submit.prevent="search()">
+                        <div class="search-row">
+                            <input type="text" x-model="query" placeholder="Search knowledge base..." required aria-label="Search query">
+                            <button type="submit" :aria-busy="loading ? 'true' : 'false'" :disabled="loading">Search</button>
                         </div>
-                        <p x-text="res.path" style="font-size: 0.75rem; color: #666; margin: 0.25rem 0;"></p>
+                    </form>
+                    <div x-show="results.length > 0">
+                        <button class="secondary outline full-width" @click="summarize()" :disabled="loading">
+                            Summarize Results
+                        </button>
                     </div>
-                </template>
-                <div x-show="!loading && results.length === 0 && searched">
-                    <p>No results found.</p>
+                    <div class="status-banner" x-show="loading" x-cloak>
+                        <span class="loading-spinner"></span>
+                        <span x-text="status"></span>
+                    </div>
+                    <div class="status-banner error" x-show="errorMessage" x-cloak>
+                        <span x-text="errorMessage"></span>
+                        <button class="secondary" @click="errorMessage = ''">Dismiss</button>
+                    </div>
+                </section>
+
+                <div class="scrollable">
+                    <template x-for="res in results" :key="res.key">
+                        <div class="result-item" :class="{ 'selected': selectedPath === res.path }" @click="selectResult(res.path)">
+                            <div class="result-head">
+                                <p class="result-title" x-text="res.title"></p>
+                                <small class="result-score" x-text="res.score.toFixed(2)"></small>
+                            </div>
+                            <p class="result-path" x-text="res.path"></p>
+                        </div>
+                    </template>
+                    <div x-show="!loading && results.length === 0 && searched">
+                        <p>No results found.</p>
+                    </div>
                 </div>
             </div>
 
-            <section x-show="loading" style="padding-top: 1rem;">
-                <p><span class="loading-spinner"></span> <span x-text="status" style="font-size: 0.9rem;"></span></p>
-            </section>
-        </div>
-
-        <div class="right-pane">
-            <div class="pane-header">
-                <h3 style="margin: 0;" x-text="rightPaneTitle"></h3>
-                <div x-show="summary || fileContent">
-                     <button class="outline secondary" @click="clearRightPane()" style="padding: 2px 10px; font-size: 0.8rem; margin: 0;">Clear</button>
-                </div>
-            </div>
-
-            <div class="scrollable">
-                <!-- Global Summary View -->
-                <div x-show="summary" class="summary-box">
-                    <div x-html="marked.parse(summary)"></div>
+            <div class="right-pane">
+                <div class="pane-header">
+                    <h3 class="pane-title" x-text="rightPaneTitle"></h3>
+                    <div x-show="summary || fileContent">
+                        <button class="outline secondary clear-btn" @click="clearRightPane()">Clear</button>
+                    </div>
                 </div>
 
-                <!-- File Content Preview -->
-                <div x-show="fileContent && !summary" class="content-view">
-                    <div x-html="marked.parse(fileContent)"></div>
-                </div>
+                <div class="scrollable">
+                    <div x-show="summary" class="summary-box markdown">
+                        <div x-html="marked.parse(summary)"></div>
+                    </div>
 
-                <div x-show="!summary && !fileContent && !loading" style="display: flex; height: 100%; align-items: center; justify-content: center; color: #aaa;">
-                    <p>Select a result to preview or click Summarize</p>
+                    <div x-show="fileContent && !summary" class="markdown">
+                        <div x-html="marked.parse(fileContent)"></div>
+                    </div>
+
+                    <div x-show="!summary && !fileContent && !loading" class="empty-state">
+                        <p>Select a result to preview or click Summarize</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -183,6 +480,7 @@
                 status: '',
                 searched: false,
                 selectedPath: '',
+                errorMessage: '',
 
                 get rightPaneTitle() {
                     if (this.summary) return 'Global Summary';
@@ -193,6 +491,7 @@
                 async search() {
                     this.loading = true;
                     this.status = 'Searching...';
+                    this.errorMessage = '';
                     this.summary = '';
                     this.fileContent = '';
                     this.searched = true;
@@ -200,25 +499,54 @@
                     try {
                         const resp = await fetch(`/api/search?q=${encodeURIComponent(this.query)}`);
                         if (!resp.ok) throw new Error('Search failed');
-                        this.results = await resp.json();
+                        const data = await resp.json();
+                        const raw = Array.isArray(data) ? data : [];
+                        const seen = new Set();
+                        this.results = raw
+                            .map((res, idx) => {
+                                const doc = res.doc ?? res.Doc ?? {};
+                                const metadata = doc.metadata ?? doc.Metadata ?? {};
+                                const title = (res.title ?? res.Title ?? metadata.title ?? metadata.filename ?? 'Untitled').toString();
+                                const path = (res.path ?? res.Path ?? metadata.source ?? '').toString();
+                                const score = Number(res.score ?? res.Score ?? 0);
+                                return {
+                                    key: `${path || 'no-path'}::${title}::${idx}`,
+                                    title,
+                                    path,
+                                    score: Number.isFinite(score) ? score : 0
+                                };
+                            })
+                            .filter((res) => {
+                                const dedupeKey = `${res.path}::${res.title}`;
+                                if (seen.has(dedupeKey)) return false;
+                                seen.add(dedupeKey);
+                                return true;
+                            });
                     } catch (e) {
-                        alert(e.message);
+                        this.results = [];
+                        this.errorMessage = e.message;
                     } finally {
                         this.loading = false;
                     }
                 },
 
                 async selectResult(path) {
+                    if (!path) {
+                        this.errorMessage = 'Selected result has no source path.';
+                        return;
+                    }
                     this.selectedPath = path;
-                    this.summary = ''; // Clear summary to show content
+                    this.summary = '';
                     this.loading = true;
                     this.status = 'Loading file content...';
+                    this.errorMessage = '';
                     try {
                         const resp = await fetch(`/api/content?path=${encodeURIComponent(path)}`);
                         if (!resp.ok) throw new Error('Failed to load file content');
                         this.fileContent = await resp.text();
                     } catch (e) {
-                        alert(e.message);
+                        this.fileContent = '';
+                        this.errorMessage = e.message;
                     } finally {
                         this.loading = false;
                     }
@@ -227,15 +555,17 @@
                 async summarize() {
                     this.loading = true;
                     this.status = 'Generating summary...';
+                    this.errorMessage = '';
                     this.summary = '';
-                    this.fileContent = ''; // Clear content to show summary
+                    this.fileContent = '';
                     try {
                         const resp = await fetch(`/api/summarize?q=${encodeURIComponent(this.query)}`);
                         if (!resp.ok) throw new Error('Summarization failed');
                         const data = await resp.json();
                         this.summary = data.summary;
                     } catch (e) {
-                        alert(e.message);
+                        this.summary = '';
+                        this.errorMessage = e.message;
                     } finally {
                         this.loading = false;
                     }

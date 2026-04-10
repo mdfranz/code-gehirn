@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/mfranz/code-gehirn/internal/searcher"
+	"github.com/mfranz/code-gehirn/internal/vault"
 	"github.com/tmc/langchaingo/chains"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/vectorstores"
@@ -53,7 +53,11 @@ func summarizeFromFiles(ctx context.Context, store qdrant.Store, llm llms.Model,
 	// Read full file contents from disk.
 	var parts []string
 	for _, rel := range filePaths {
-		full := filepath.Join(vaultPath, rel)
+		full, err := vault.ResolvePath(vaultPath, rel)
+		if err != nil {
+			slog.Warn("summarize: skipping unsafe path", "path", rel, "error", err)
+			continue
+		}
 		data, err := os.ReadFile(full)
 		if err != nil {
 			slog.Warn("summarize: skipping unreadable file", "path", full, "error", err)

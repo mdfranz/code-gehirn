@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/mfranz/code-gehirn/internal/indexer"
-	"github.com/mfranz/code-gehirn/internal/provider"
+	"github.com/mfranz/code-gehirn/internal/runtime"
 	"github.com/mfranz/code-gehirn/internal/store"
 	"github.com/spf13/cobra"
 )
@@ -18,14 +18,9 @@ var indexCmd = &cobra.Command{
 		repoPath := args[0]
 		ctx := context.Background()
 
-		embedder, err := provider.NewEmbedder(cfg.Embedding)
+		embedder, qdrantStore, err := runtime.NewEmbedderAndStore(*cfg)
 		if err != nil {
-			return fmt.Errorf("creating embedder: %w", err)
-		}
-
-		qdrantStore, err := store.New(cfg.Qdrant, embedder)
-		if err != nil {
-			return fmt.Errorf("creating store: %w", err)
+			return err
 		}
 
 		// Probe embedding dimension

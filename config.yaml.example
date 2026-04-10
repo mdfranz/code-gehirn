@@ -22,6 +22,9 @@ search:
   min_score: 0.0     # minimum similarity score (0.0–1.0)
   max_results: 15    # number of results to return
 
+summary:
+  top_k: 5           # number of top documents/files to use for summarization
+
 # All values can be overridden with GEHIRN_ env vars, e.g.:
 #   GEHIRN_LLM_PROVIDER=anthropic
 #   GEHIRN_LLM_API_KEY=sk-ant-...

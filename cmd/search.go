@@ -4,13 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 
-	"github.com/mfranz/code-gehirn/internal/provider"
+	"github.com/mfranz/code-gehirn/internal/runtime"
 	"github.com/mfranz/code-gehirn/internal/searcher"
-	"github.com/mfranz/code-gehirn/internal/store"
+	"github.com/mfranz/code-gehirn/internal/vault"
 	"github.com/spf13/cobra"
 )
 
@@ -27,13 +26,9 @@ var searchCmd = &cobra.Command{
 		query := strings.Join(args, " ")
 		ctx := context.Background()
 
-		embedder, err := provider.NewEmbedder(cfg.Embedding)
+		_, qdrantStore, err := runtime.NewEmbedderAndStore(*cfg)
 		if err != nil {
-			return fmt.Errorf("creating embedder: %w", err)
-		}
-		qdrantStore, err := store.New(cfg.Qdrant, embedder)
-		if err != nil {
-			return fmt.Errorf("creating store: %w", err)
+			return err
 		}
 
 		if !cmd.Flags().Changed("top") {
@@ -66,7 +61,10 @@ var searchCmd = &cobra.Command{
 						continue
 					}
 					processedFiles[r.Path] = true
-					fullPath := filepath.Join(cfg.VaultPath, r.Path)
+					fullPath, err := vault.ResolvePath(cfg.VaultPath, r.Path)
+					if err != nil {
+						continue
+					}
 					data, err := os.ReadFile(fullPath)
 					if err == nil {
 						content = string(data)

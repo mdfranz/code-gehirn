@@ -8,8 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mfranz/code-gehirn/internal/config"
-	"github.com/mfranz/code-gehirn/internal/provider"
-	"github.com/mfranz/code-gehirn/internal/store"
+	"github.com/mfranz/code-gehirn/internal/runtime"
 	"github.com/tmc/langchaingo/embeddings"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/vectorstores/qdrant"
@@ -71,21 +70,21 @@ func (m AppModel) Init() tea.Cmd {
 
 func (m AppModel) initEmbedderCmd() tea.Cmd {
 	return func() tea.Msg {
-		embedder, err := provider.NewEmbedder(m.config.Embedding)
+		embedder, err := runtime.NewEmbedder(m.config)
 		return initStageMsg{stage: "embedder", payload: embedder, err: err}
 	}
 }
 
 func (m AppModel) initLLMCmd() tea.Cmd {
 	return func() tea.Msg {
-		llm, err := provider.NewLLM(m.config.LLM)
+		llm, err := runtime.NewLLM(m.config)
 		return initStageMsg{stage: "llm", payload: llm, err: err}
 	}
 }
 
 func (m AppModel) initStoreCmd() tea.Cmd {
 	return func() tea.Msg {
-		qdrantStore, err := store.New(m.config.Qdrant, m.embedder)
+		qdrantStore, err := runtime.NewStore(m.config, m.embedder)
 		return initStageMsg{stage: "store", payload: qdrantStore, err: err}
 	}
 }
@@ -162,6 +161,9 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c":
+			if m.activeScreen == screenSummary {
+				m.summaryModel.cancelInFlight()
+			}
 			return m, tea.Quit
 		case "q":
 			if m.initializing || m.activeScreen == screenSearch {
@@ -169,6 +171,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "esc":
 			if m.activeScreen == screenSummary {
+				m.summaryModel.cancelInFlight()
 				m.activeScreen = screenSearch
 				m.status = "Ready"
 				return m, nil
@@ -176,12 +179,13 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case switchToSummaryMsg:
+		m.summaryModel.cancelInFlight()
 		m.activeScreen = screenSummary
 		m.summaryModel = newSummaryModel()
 		m.summaryModel.SetSize(m.width, m.height-1)
 		m.status = fmt.Sprintf("Summarizing '%s'...", msg.query)
 		slog.Info("summary started", "query", msg.query)
-		return m, m.summaryModel.startSummary(msg.query, m.store, m.llm, m.config.VaultPath, m.config.LLM.MaxTokens)
+		return m, m.summaryModel.startSummary(msg.query, m.store, m.llm, m.config.Summary.TopK, m.config.VaultPath, m.config.LLM.MaxTokens)
 	}
 
 	if m.initializing {

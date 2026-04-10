@@ -34,6 +34,10 @@ type SearchConfig struct {
 	MaxResults int     `mapstructure:"max_results"`
 }
 
+type SummaryConfig struct {
+	TopK int `mapstructure:"top_k"`
+}
+
 type LogConfig struct {
 	APIFile string `mapstructure:"api_file"`
 	AppFile string `mapstructure:"app_file"`
@@ -44,6 +48,7 @@ type Config struct {
 	LLM       LLMConfig       `mapstructure:"llm"`
 	Embedding EmbeddingConfig `mapstructure:"embedding"`
 	Search    SearchConfig    `mapstructure:"search"`
+	Summary   SummaryConfig   `mapstructure:"summary"`
 	Log       LogConfig       `mapstructure:"log"`
 	VaultPath string          `mapstructure:"vault_path"`
 }
@@ -82,6 +87,7 @@ func Load(cfgFile string) (*Config, error) {
 	v.SetDefault("embedding.model", "text-embedding-3-small")
 	v.SetDefault("search.min_score", 0.0)
 	v.SetDefault("search.max_results", 15)
+	v.SetDefault("summary.top_k", 5)
 	if home, err := os.UserHomeDir(); err == nil {
 		v.SetDefault("log.api_file", home+"/.local/share/code-gehirn/api.log")
 		v.SetDefault("log.app_file", home+"/.local/share/code-gehirn/app.log")

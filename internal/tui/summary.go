@@ -17,13 +17,16 @@ import (
 )
 
 type SummaryModel struct {
-	query   string
-	vp      viewport.Model
-	spinner spinner.Model
-	loading bool
-	err     error
-	width   int
-	height  int
+	query         string
+	vp            viewport.Model
+	spinner       spinner.Model
+	loading       bool
+	err           error
+	width         int
+	height        int
+	cancelSummary context.CancelFunc
+	reqSeq        uint64
+	activeReq     uint64
 }
 
 func newSummaryModel() SummaryModel {
@@ -33,13 +36,21 @@ func newSummaryModel() SummaryModel {
 	return SummaryModel{spinner: sp, loading: true}
 }
 
-func (m *SummaryModel) startSummary(query string, store qdrant.Store, llm llms.Model, vaultPath string, maxTokens int) tea.Cmd {
+func (m *SummaryModel) startSummary(query string, store qdrant.Store, llm llms.Model, topK int, vaultPath string, maxTokens int) tea.Cmd {
+	m.cancelInFlight()
 	m.query = query
+	m.loading = true
+	m.err = nil
+	ctx, cancel := context.WithCancel(context.Background())
+	m.cancelSummary = cancel
+	m.reqSeq++
+	m.activeReq = m.reqSeq
+	request := m.activeReq
 	return tea.Batch(
 		m.spinner.Tick,
 		func() tea.Msg {
-			text, err := summarizer.Summarize(context.Background(), store, llm, query, 5, vaultPath, maxTokens)
-			return SummaryMsg{Query: query, Text: text, Err: err}
+			text, err := summarizer.Summarize(ctx, store, llm, query, topK, vaultPath, maxTokens)
+			return SummaryMsg{Query: query, Request: request, Text: text, Err: err}
 		},
 	)
 }
@@ -48,10 +59,11 @@ func (m SummaryModel) Update(msg tea.Msg) (SummaryModel, tea.Cmd) {
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
 	case SummaryMsg:
-		if msg.Query != m.query {
+		if msg.Query != m.query || msg.Request != m.activeReq {
 			// Stale result from a previous summarization — discard.
 			return m, nil
 		}
+		m.cancelSummary = nil
 		m.loading = false
 		m.err = msg.Err
 		if msg.Err == nil {
@@ -97,6 +109,13 @@ func (m SummaryModel) Update(msg tea.Msg) (SummaryModel, tea.Cmd) {
 		var cmd tea.Cmd
 		m.vp, cmd = m.vp.Update(msg)
 		return m, cmd
+	}
+}
+
+func (m *SummaryModel) cancelInFlight() {
+	if m.cancelSummary != nil {
+		m.cancelSummary()
+		m.cancelSummary = nil
 	}
 }
 

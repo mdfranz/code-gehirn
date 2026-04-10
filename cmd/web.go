@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/mfranz/code-gehirn/internal/provider"
-	"github.com/mfranz/code-gehirn/internal/store"
+	"github.com/mfranz/code-gehirn/internal/runtime"
 	"github.com/mfranz/code-gehirn/internal/web"
 	"github.com/spf13/cobra"
 )
@@ -18,19 +17,14 @@ var webCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		slog.Info("Initializing providers for web UI...")
 
-		embedder, err := provider.NewEmbedder(cfg.Embedding)
+		_, qdrantStore, err := runtime.NewEmbedderAndStore(*cfg)
 		if err != nil {
-			return fmt.Errorf("creating embedder: %w", err)
+			return err
 		}
 
-		qdrantStore, err := store.New(cfg.Qdrant, embedder)
+		llm, err := runtime.NewLLM(*cfg)
 		if err != nil {
-			return fmt.Errorf("connecting to Qdrant: %w", err)
-		}
-
-		llm, err := provider.NewLLM(cfg.LLM)
-		if err != nil {
-			return fmt.Errorf("connecting to LLM: %w", err)
+			return err
 		}
 
 		server := web.NewServer(*cfg, qdrantStore, llm)

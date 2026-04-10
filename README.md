@@ -47,6 +47,8 @@ cp config.yaml.example config.yaml
 # Edit config.yaml with your Qdrant and LLM provider details
 ```
 
+`summary.top_k` controls how many top relevant documents are sent to the summarizer.
+
 ## Usage
 
 ### 1. Indexing

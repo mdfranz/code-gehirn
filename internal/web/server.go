@@ -7,13 +7,12 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/mfranz/code-gehirn/internal/config"
 	"github.com/mfranz/code-gehirn/internal/searcher"
 	"github.com/mfranz/code-gehirn/internal/summarizer"
+	"github.com/mfranz/code-gehirn/internal/vault"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/vectorstores/qdrant"
 )
@@ -58,10 +57,8 @@ func (s *Server) handleContent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Basic security: prevent path traversal
-	fullPath := filepath.Clean(filepath.Join(s.cfg.VaultPath, path))
-	rel, err := filepath.Rel(s.cfg.VaultPath, fullPath)
-	if err != nil || strings.HasPrefix(rel, "..") {
+	fullPath, err := vault.ResolvePath(s.cfg.VaultPath, path)
+	if err != nil {
 		http.Error(w, "invalid path", http.StatusBadRequest)
 		return
 	}
@@ -114,7 +111,7 @@ func (s *Server) handleSummarize(w http.ResponseWriter, r *http.Request) {
 		s.store,
 		s.llm,
 		query,
-		5, // topK
+		s.cfg.Summary.TopK,
 		s.cfg.VaultPath,
 		s.cfg.LLM.MaxTokens,
 	)
