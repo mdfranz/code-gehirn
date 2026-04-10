@@ -48,6 +48,7 @@ Some terminal emulators send OSC (Operating System Command) sequences through st
 ### 3. Asynchronous Search Management
 Rapid user input causes multiple searches to be in flight concurrently. Without coordination, a slower search for an earlier query can return results *after* a newer search completes, displaying stale results.
 - **Solution**: Request sequencing implemented in the search and summary models. Each search is assigned a sequence ID. Results are only applied if the response ID matches the current `activeReq`. Older searches can be cancelled via `context.Context` if a new search arrives.
+- **Implementation Detail**: Uses `tea.Batch()` to send concurrent commands while respecting cancellation semantics, ensuring the UI never displays outdated information.
 
 ### 4. Observability vs. UI
 Detailed logging for RAG debugging conflicts with a clean terminal interface. A dual-logging approach separates concerns.
@@ -58,13 +59,16 @@ Detailed logging for RAG debugging conflicts with a clean terminal interface. A 
 ### 5. Slow Application Startup
 Early TUI startup was sequential: embedder → LLM → vector store, leading to delays especially with cloud-based providers.
 - **Solution**: Refactored `AppModel.Init()` (`internal/tui/model.go`) to use `tea.Batch()` for concurrent initialization. The embedder and LLM providers initialize in parallel. Vector store connection begins once the embedder is ready, eliminating the LLM initialization dependency.
+- **Trade-off**: This removed a safety guarantee (embedder fully ready before vector store connects), but vector store connection is fast enough that this risk is minimal. Parallelization significantly improved perceived startup responsiveness.
 
 ### 6. Configuration & Multi-Environment Collisions
 Two configuration issues emerged during multi-environment testing:
 - **Collection Name Collisions**: Multiple users sharing a single Qdrant instance can overwrite each other's indexes with the default "code-gehirn" collection name.
     - **Solution**: Default collection name now incorporates hostname and OS (e.g., `code-gehirn-hostname-linux`) for uniqueness across environments.
+    - **Lesson**: Environment-specific defaults are essential when software runs in shared systems. This issue was invisible during single-user development but critical in production.
 - **Path Resolution**: Configuration files use `~/` for home directory paths, but Viper (the config library) does not expand tildes automatically.
     - **Solution**: Custom path expansion in `internal/config/config.go` manually resolves `~/` before application initialization.
+    - **Lesson**: Many Go libraries assume paths are already expanded. Configuration handling must account for platform conventions beyond what the library provides.
 
 ## Core Milestones
 
@@ -97,6 +101,23 @@ Two interface types and multiple LLM providers are now supported:
 ### 5. Observability and Debugging
 A custom HTTP transport in `internal/logger/` intercepts and logs raw request/response bodies from LLM and vector store calls. This traffic logging is useful for debugging prompt engineering and understanding provider behavior.
 
+## Design Rationale & Key Decisions
+
+### Summarization Strategy: Global vs Per-File
+The TUI and Web UI intentionally use the same global summarization strategy: take the original search query and top 5 results, producing a single summary across all matching files rather than summarizing each file individually.
+- **Rationale**: Consistency across interfaces and simplicity—users get one coherent answer to their query.
+- **Alternative Considered**: Per-file summarization would provide more granular insights but would diverge from the user's original intent and complicate the interface.
+
+### Security Pattern: Path Traversal Protection
+The Web UI's `/api/content` endpoint, which serves full file previews, uses `filepath.Rel()` to validate that requested file paths remain within the indexed repository boundaries.
+- **Why Not Simple String Matching?**: Go's `filepath.Rel()` properly handles edge cases like `../`, symbolic links, and platform-specific path semantics. Simple `strings.Contains` checks are insufficient for robust path security.
+- **Scope**: Ensures all file reads initiated through the web API stay within the vault, preventing malicious path traversal attempts.
+
+### Separation of Concerns: Logging Strategy
+The dual-logging approach (app.log for lifecycle, api.log for provider traffic) emerged from a conflict between observability and user experience.
+- **Drivers**: LLM provider SDKs write verbose status messages to stderr, corrupting Bubble Tea's terminal rendering. Complete suppression hides useful debugging information.
+- **Solution**: Redirect stderr to app.log and separately capture all request/response bodies via custom HTTP transport to api.log. Users get a clean TUI; developers get full debugging context.
+
 ## Current State
 `code-gehirn` is a functional multi-interface RAG tool with modular architecture supporting multiple LLM providers and UI frontends. Both TUI and Web interfaces are functional; the system handles asynchronous search and summarization with proper cancellation and state management.
 
@@ -105,3 +126,6 @@ Potential areas for future work:
 - Support for additional document formats (code files, PDFs, HTML).
 - Advanced indexing strategies for very large repositories.
 - Additional provider integrations.
+- Markdown rendering robustness: The glamour renderer's initialization is timing-sensitive; a more robust fallback strategy would improve reliability in edge cases.
+- Configuration hot-reloading (mentioned in early discussions but not implemented).
+- Recursive or multi-level summarization for complex queries spanning many documents.
