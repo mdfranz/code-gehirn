@@ -13,6 +13,50 @@ It indexes markdown files from a local repository into a [Qdrant](https://qdrant
 - **Git Integration**: Indexes markdown files directly from local repositories, skipping internal git data.
 - **Multi-Provider Support**: Supports multiple embedding and LLM providers including Ollama (local), OpenAI, Anthropic, and Google Gemini.
 
+## Interfaces
+
+### Search
+```
+mdfranz@lenovo-cr14p-arm:~/github/cheetsheetz$ ~/bin/code-gehirn search "agno"
+[1] README (score: 0.655)
+    ## Agno - [agno](./agno.md)
+
+[2] README (score: 0.655)
+    ## Agno - [agno](./agno.md)
+
+[3] agno (score: 0.607)
+    # Docs - [agno](https://github.com/agno-agi/agno)
+
+[4] agno (score: 0.607)
+    # Docs - [agno](https://github.com/agno-agi/agno)
+
+[5] agno (score: 0.412)
+    # Skills - [https://github.com/agno-agi/agno-skills](https://github.com/agno-agi/agno-skills) - [https://github.com/Ash-Blanc/skill-optimizer](https://github.com/Ash-Blanc/skill-optimizer) - [https://...
+
+[6] agno (score: 0.412)
+    # Skills - [https://github.com/agno-agi/agno-skills](https://github.com/agno-agi/agno-skills) - [https://github.com/Ash-Blanc/skill-optimizer](https://github.com/Ash-Blanc/skill-optimizer) - [https://...
+
+[7] agno (score: 0.357)
+    # Articles - [https://medium.com/ai-agent-insider/agno-building-multimodal-ai-agents-48571b835a93](https://medium.com/ai-agent-insider/agno-building-multimodal-ai-agents-48571b835a93))
+
+[8] agno (score: 0.357)
+    # Articles - [https://medium.com/ai-agent-insider/agno-building-multimodal-ai-agents-48571b835a93](https://medium.com/ai-agent-insider/agno-building-multimodal-ai-agents-48571b835a93))
+```
+
+### TUI
+
+![TUI Search](tui-search.png)
+![TUI Summary](tui-summary.png)
+
+### Web
+
+![Web Search](web-search.png)
+![Web Summary](web-summary.png)
+
+
+
+
+
 ## Prerequisites
 
 - **Go**: 1.26 or higher.
