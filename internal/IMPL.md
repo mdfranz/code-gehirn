@@ -25,7 +25,7 @@ graph TD
     subgraph Interfaces [Interface Implementation]
         TUI[tui: Bubble Tea App]
         Web[web: HTTP Server]
-    </subgraph>
+    end
 
     %% Core Logic
     subgraph Logic [Core Logic]
