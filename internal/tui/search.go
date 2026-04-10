@@ -223,18 +223,22 @@ func (m *SearchModel) SetSize(w, h int) {
 	}
 	m.preview = viewport.New(w-2, previewHeight)
 
-	// Update renderer with new width
+	// Update renderer only if width changed
 	wrap := w - 4
 	if wrap < 20 {
 		wrap = 20
 	}
 
-	r, err := glamour.NewTermRenderer(
-		glamour.WithAutoStyle(),
-		glamour.WithWordWrap(wrap),
-	)
-	if err == nil {
-		m.renderer = r
+	if m.renderer == nil || wrap != m.width-4 {
+		// Use a standard style instead of WithAutoStyle() which can be slow as it
+		// probes the terminal for background color.
+		r, err := glamour.NewTermRenderer(
+			glamour.WithStandardStyle("dark"),
+			glamour.WithWordWrap(wrap),
+		)
+		if err == nil {
+			m.renderer = r
+		}
 	}
 	m.updatePreview()
 }

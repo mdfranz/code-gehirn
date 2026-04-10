@@ -129,7 +129,15 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.llmReady = true
 			m.initLogs[1] += " done."
 			slog.Info("llm ready", "provider", m.config.LLM.Provider, "model", m.config.LLM.Model)
-			if m.storeReady {
+			if !m.initializing {
+				// We already transitioned to Ready via store completion.
+				if m.activeScreen == screenSummary && m.summaryModel.loading && m.summaryModel.Query != "" {
+					m.status = fmt.Sprintf("Summarizing '%s'...", m.summaryModel.Query)
+					return m, m.summaryModel.startSummary(m.summaryModel.Query, m.store, m.llm, m.config.Summary.TopK, m.config.VaultPath, m.config.LLM.MaxTokens)
+				}
+				m.status = "Ready"
+			}
+			if m.storeReady && m.initializing {
 				return m.completeInit()
 			}
 			return m, nil
@@ -139,7 +147,9 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.storeReady = true
 			m.initLogs[2] += " done."
 			slog.Info("store ready", "url", m.config.Qdrant.URL)
-			if m.llmReady {
+			// Transition to ready as soon as store is available for searching.
+			// LLM can finish in the background.
+			if m.initializing {
 				return m.completeInit()
 			}
 			return m, nil
@@ -183,6 +193,11 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.activeScreen = screenSummary
 		m.summaryModel = newSummaryModel()
 		m.summaryModel.SetSize(m.width, m.height-1)
+		m.summaryModel.Query = msg.query
+		if !m.llmReady {
+			m.status = "Waiting for LLM initialization..."
+			return m, nil
+		}
 		m.status = fmt.Sprintf("Summarizing '%s'...", msg.query)
 		slog.Info("summary started", "query", msg.query)
 		return m, m.summaryModel.startSummary(msg.query, m.store, m.llm, m.config.Summary.TopK, m.config.VaultPath, m.config.LLM.MaxTokens)

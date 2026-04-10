@@ -17,9 +17,10 @@ import (
 )
 
 type SummaryModel struct {
-	query         string
+	Query         string
 	vp            viewport.Model
 	spinner       spinner.Model
+	renderer      *glamour.TermRenderer
 	loading       bool
 	err           error
 	width         int
@@ -38,7 +39,7 @@ func newSummaryModel() SummaryModel {
 
 func (m *SummaryModel) startSummary(query string, store qdrant.Store, llm llms.Model, topK int, vaultPath string, maxTokens int) tea.Cmd {
 	m.cancelInFlight()
-	m.query = query
+	m.Query = query
 	m.loading = true
 	m.err = nil
 	ctx, cancel := context.WithCancel(context.Background())
@@ -59,7 +60,7 @@ func (m SummaryModel) Update(msg tea.Msg) (SummaryModel, tea.Cmd) {
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
 	case SummaryMsg:
-		if msg.Query != m.query || msg.Request != m.activeReq {
+		if msg.Query != m.Query || msg.Request != m.activeReq {
 			// Stale result from a previous summarization — discard.
 			return m, nil
 		}
@@ -73,19 +74,10 @@ func (m SummaryModel) Update(msg tea.Msg) (SummaryModel, tea.Cmd) {
 			}
 			slog.Info("summary complete", "query", msg.Query)
 			cmds = append(cmds, func() tea.Msg { return StatusMsg{Text: "Summary complete"} })
-			r, err := glamour.NewTermRenderer(
-				glamour.WithAutoStyle(),
-				glamour.WithWordWrap(func() int {
-					w := m.width - 4
-					if w < 20 {
-						return 20
-					}
-					return w
-				}()),
-			)
+
 			content := text
-			if err == nil {
-				if rendered, rerr := r.Render(text); rerr == nil {
+			if m.renderer != nil {
+				if rendered, rerr := m.renderer.Render(text); rerr == nil {
 					content = rendered
 				}
 			}
@@ -123,6 +115,20 @@ func (m *SummaryModel) SetSize(w, h int) {
 	m.width = w
 	m.height = h
 	m.vp = viewport.New(w-2, h-5)
+
+	wrap := w - 4
+	if wrap < 20 {
+		wrap = 20
+	}
+	if m.renderer == nil || wrap != m.width-4 {
+		r, err := glamour.NewTermRenderer(
+			glamour.WithStandardStyle("dark"),
+			glamour.WithWordWrap(wrap),
+		)
+		if err == nil {
+			m.renderer = r
+		}
+	}
 }
 
 func (m SummaryModel) View() string {
@@ -140,7 +146,7 @@ func (m SummaryModel) View() string {
 	}
 	sb.WriteString(title + strings.Repeat(" ", gap) + help + "\n\n")
 
-	sb.WriteString(summaryTitleStyle.Render(fmt.Sprintf("  Summary: %s\n", m.query)))
+	sb.WriteString(summaryTitleStyle.Render(fmt.Sprintf("  Summary: %s\n", m.Query)))
 	sb.WriteString(dividerStyle.Render("  " + strings.Repeat("─", m.width-4) + "\n"))
 
 	if m.loading {
