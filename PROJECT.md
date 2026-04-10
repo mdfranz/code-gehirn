@@ -4,88 +4,104 @@
 
 ## Development Timeline
 
-### Phase 1: The Core Foundation (April 8, 2026)
+### Phase 1: The Core Foundation (April 8, 2026 – Morning)
 The project was initiated with the goal of building a "code brain" using Go and Qdrant. 
 - **Initial Prototype**: The first commit (`feb34e2`) established the core indexing and search functionality using `langchaingo`.
 - **Architecture & UI**: Early on, the project structure was formalized, and the basic TUI was introduced (`57a668b`).
-- **RAG Refinement**: Significant improvements were made to the summarization logic and TUI features (`502bd9f`), transitioning from simple searches to a more interactive experience.
-- **Logging & Debugging**: A custom HTTP transport was added to the logger to intercept and log LLM traffic, providing critical visibility into the RAG process.
 
-### Phase 2: Refinement & Expansion (April 9, 2026)
-The project moved from a terminal-only tool to a multi-interface system.
-- **Search Enhancements**: CLI search capabilities were expanded (`b9efa39`), including better result formatting and URL extraction.
-- **Web UI Introduction**: A new `web` subcommand was added (`5108ac9`), introducing a browser-based interface powered by an embedded static frontend (`aa9f11c`).
-- **Feature Convergence**: The web and TUI interfaces were unified and stabilized (`cd8476a`), ensuring feature parity for search and summarization.
-- **Integration & Merge**: The major "webui" feature branch was successfully merged into `main` (`3ca92be`), marking the transition to a stable, multi-platform tool.
+### Phase 2: Refinement & Expansion (April 8–9, 2026)
+The project expanded beyond the core TUI to support multiple interfaces and improved system observability.
+- **Logging & Observability**: A structured logging system was introduced (`502bd9f`, `e679860`), including HTTP traffic interception for debugging RAG operations.
+- **CLI Search Enhancements**: Search capabilities were expanded (`b9efa39`) with result formatting and URL extraction utilities.
+- **Web UI Introduction**: A browser-based interface was added (`aa9f11c`) with an embedded static frontend, complementing the TUI.
+- **Web and TUI Consolidation**: Both interfaces were refined (`cd8476a`, `350bcad`) to share core search and summarization logic.
+- **Integration & Merge**: The webui branch was merged into `main` (`3ca92be`), establishing a stable multi-interface architecture.
+
+## Evolution of Interfaces
+
+Each of `code-gehirn`'s three primary interfaces underwent a distinct evolutionary journey, driven by user feedback and the need for greater flexibility.
+
+### 1. CLI Search: From Basic to Specialized
+The initial `search` command provided basic proof-of-concept functionality. Subsequent enhancements added practical utilities.
+- **Milestone**: The addition of flags like `--urls` and `--all` (`b9efa39`) enabled data extraction patterns—extracting URLs from search results or scanning entire source files.
+
+### 2. TUI: The Interactive Heart
+The TUI was built on the `Bubble Tea` framework for real-time interactivity. A critical implementation detail addresses asynchronous timing issues.
+- **Milestone**: Request sequencing (`cd8476a`) was implemented to handle cases where multiple searches are in flight. Each search operation is assigned a sequence ID; results are only applied if they match the current active request. This prevents stale results from arriving after a newer search has been initiated, ensuring the UI reflects the most recent query state.
+
+### 3. Web UI: Browser-Based Access
+The Web UI provides browser-based access to search and summarization without terminal dependency.
+- **Milestone**: Introduced in `aa9f11c`, the web interface includes client-side search result deduplication, error handling, and preview rendering. It shares core search and summary logic with the TUI, enabling feature parity across interfaces.
 
 ## Technical Challenges & Lessons
 
-Building `code-gehirn` revealed several non-obvious challenges in terminal-based RAG applications.
+Several implementation challenges emerged during development of the TUI and RAG integration.
 
 ### 1. TUI Corruption & Log Redirection
-A major early issue was the TUI "bleeding" or getting corrupted by external logs. Many LLM provider SDKs (e.g., OpenAI, Anthropic) log status messages or warnings directly to `stderr`. In a Bubble Tea application, these logs would write over the interface, leading to visual glitches.
-- **Solution**: The `tui` command was updated to globally redirect `os.Stderr` to a dedicated `app.log` file during the TUI session, ensuring the interface remains clean.
+LLM provider SDKs write status messages and warnings to `stderr`, which interferes with Bubble Tea's terminal control in the TUI.
+- **Solution**: The `tui` command (`cmd/tui.go`) redirects `os.Stderr` to the `app.log` file during runtime, preventing SDK output from corrupting the terminal interface.
 
 ### 2. Handling Terminal Escape Sequences
-The application encountered "ghost" characters in the search input caused by the terminal itself. Some terminal emulators send OSC (Operating System Command) sequences (like background color queries) as standard input.
-- **Solution**: A strict input filter was implemented in the search model, allowing only alphanumeric characters and spaces while explicitly blocking sequences starting with `\033` or containing `;`.
+Some terminal emulators send OSC (Operating System Command) sequences through stdin—e.g., background color queries. These appear as extraneous input characters.
+- **Solution**: Input filtering in the search model (`internal/tui/search.go`) restricts input to alphanumeric characters and spaces, naturally rejecting OSC sequences that contain control characters like `;`, `\`, and `]`.
 
 ### 3. Asynchronous Search Management
-Managing real-time search results proved complex. If a user typed quickly, multiple background searches would be in flight simultaneously. Without careful management, a slower search for an older query could complete *after* a newer search, causing the results to "flicker" back to a stale state.
-- **Solution**: A request sequencing and cancellation system was built. Each search is wrapped in a cancellable `context.Context`. When a new search is triggered, any previous search is immediately cancelled, and results are only accepted if they match the current `activeReq` ID.
+Rapid user input causes multiple searches to be in flight concurrently. Without coordination, a slower search for an earlier query can return results *after* a newer search completes, displaying stale results.
+- **Solution**: Request sequencing implemented in the search and summary models. Each search is assigned a sequence ID. Results are only applied if the response ID matches the current `activeReq`. Older searches can be cancelled via `context.Context` if a new search arrives.
 
 ### 4. Observability vs. UI
-Balancing the need for detailed logs (to debug RAG prompts) with a clean user experience required a split-logger architecture.
-- **Solution**: Two log streams were created:
-    - `app.log`: For application lifecycle events and errors.
-    - `api.log`: A dedicated high-volume log that captures the raw request/response bodies of all outbound LLM and vector store calls using a custom HTTP transport.
+Detailed logging for RAG debugging conflicts with a clean terminal interface. A dual-logging approach separates concerns.
+- **Solution**: Two log streams created in `internal/logger/`:
+    - `app.log`: Application lifecycle events and errors.
+    - `api.log`: Raw LLM and vector store request/response bodies captured via custom HTTP transport, useful for debugging prompt interactions and provider behavior.
 
 ### 5. Slow Application Startup
-Initial versions of the TUI suffered from a sequential "waterfall" startup. The application would first initialize the embedder, then wait for the LLM, and finally connect to the vector store. This led to a sluggish user experience, especially when using cloud-based providers.
-- **Solution**: The `AppModel.Init()` was refactored to use `tea.Batch` for parallel initialization. The embedder and LLM providers are now initialized concurrently. The vector store connection starts as soon as the embedder is ready, without waiting for the LLM, cutting the total startup time by nearly 50%.
+Early TUI startup was sequential: embedder → LLM → vector store, leading to delays especially with cloud-based providers.
+- **Solution**: Refactored `AppModel.Init()` (`internal/tui/model.go`) to use `tea.Batch()` for concurrent initialization. The embedder and LLM providers initialize in parallel. Vector store connection begins once the embedder is ready, eliminating the LLM initialization dependency.
 
 ### 6. Configuration & Multi-Environment Collisions
-As the tool was tested across different machines, two major configuration hurdles emerged:
-- **Collection Name Collisions**: Multiple users or environments sharing a single Qdrant instance would overwrite each other's indexes if they used the default "code-gehirn" collection name. 
-    - **Solution**: The default collection name was changed to be globally unique by incorporating the local hostname and OS (e.g., `code-gehirn-my-laptop-linux`).
-- **Path Resolution**: Users expected `~/` to work in configuration paths for log files, but the underlying configuration library (Viper) does not automatically expand tildes in strings.
-    - **Solution**: A custom path expansion utility was added to the configuration loader to manually resolve home directory prefixes before the application starts.
+Two configuration issues emerged during multi-environment testing:
+- **Collection Name Collisions**: Multiple users sharing a single Qdrant instance can overwrite each other's indexes with the default "code-gehirn" collection name.
+    - **Solution**: Default collection name now incorporates hostname and OS (e.g., `code-gehirn-hostname-linux`) for uniqueness across environments.
+- **Path Resolution**: Configuration files use `~/` for home directory paths, but Viper (the config library) does not expand tildes automatically.
+    - **Solution**: Custom path expansion in `internal/config/config.go` manually resolves `~/` before application initialization.
 
 ## Core Milestones
 
 ### 1. Foundation (Initial Prototype)
-The project started with a focus on **Semantic Search**. By leveraging the Qdrant vector database and Go, the goal was to provide a faster and more meaningful search experience than simple keyword-based `grep`. 
+The project establishes semantic search using Qdrant (vector database) and Go.
 
-- **Key choice**: Use [langchaingo](https://github.com/tmc/langchaingo) for LLM orchestration to maintain provider-agnosticism from day one.
-- **Git Integration**: The indexer was designed to respect `.git` boundaries, ensuring only relevant markdown content is indexed while skipping internal repository metadata.
+- **Key choice**: [langchaingo](https://github.com/tmc/langchaingo) for LLM orchestration, maintaining provider-agnosticism.
+- **Indexer Design**: Respects `.git` boundaries when indexing, processing only markdown content and excluding repository metadata.
 
 ### 2. The Terminal Experience (TUI)
-Recognizing that developers live in the terminal, a robust **Interactive TUI** was built using the [Charm Bracelet](https://charm.sh/) ecosystem (Bubble Tea, Lip Gloss, Glamour). 
+An interactive TUI was built using the [Charm Bracelet](https://charm.sh/) ecosystem (Bubble Tea, Lip Gloss, Glamour) to provide a native terminal interface.
 
-- **Real-time Search**: Instant feedback as the user types queries.
-- **Rich Rendering**: Markdown previews directly in the terminal, preserving formatting and code blocks.
-- **In-place Summarization**: The ability to trigger an LLM summary of search results without leaving the interface.
+- **Real-time Search**: Search results are streamed as the user types.
+- **Rich Rendering**: Markdown formatting and code blocks are rendered directly in the terminal.
+- **Summarization**: LLM summarization can be triggered on search results without leaving the interface.
 
 ### 3. RAG Strategy Evolution: Chunks to Full-Context
-The retrieval-augmented generation (RAG) strategy evolved significantly to improve summary quality:
+Two retrieval approaches are supported:
 
-- **Initial Approach**: Standard chunk-based retrieval, where the LLM only saw the 500-token snippets that matched the search query.
-- **Enhanced "Full-Document" Mode**: Introduced a hybrid model. If a `vaultPath` is configured, the system retrieves matching file paths from the vector store but then reads the **entire document** from the local filesystem. This provides the LLM with the full context of the relevant files, leading to much richer and more accurate summaries.
-- **Security (The Vault)**: To support full-document reads safely, a `vault` package was introduced to prevent path traversal attacks and ensure all reads are constrained within the indexed repository.
+- **Chunk-Based Retrieval**: Standard vector search returns the top matching 500-token chunks to the LLM.
+- **Full-Document Mode**: When `vaultPath` is configured, matching file paths are retrieved from the vector store, and the entire file is read from disk before summarization. This provides more context to the LLM than chunk-only approaches.
+- **Path Traversal Protection**: The `vault` package validates all file reads to prevent path traversal attacks and ensure reads stay within the indexed repository (`internal/vault/vault.go`).
 
 ### 4. Expansion: Web UI and Multi-Provider Support
-To make the "code brain" accessible beyond the terminal:
+Two interface types and multiple LLM providers are now supported:
 
-- **Web UI**: An experimental browser-based interface was added, featuring the same search and summarization capabilities as the TUI, built with a Go backend and an embedded static frontend.
-- **Broad Provider Support**: The provider layer was abstracted to support **Ollama** (for 100% local operation), **OpenAI**, **Anthropic**, and **Google Gemini**, allowing users to choose their balance of performance and privacy.
+- **Web UI**: A browser-based interface provides the same search and summarization capabilities as the TUI, built with a Go backend and embedded static frontend.
+- **Multi-Provider Support**: Provider layer supports Ollama (local), OpenAI, Anthropic, and Google Gemini, allowing users to choose based on performance and privacy requirements.
 
 ### 5. Observability and Debugging
-A custom HTTP transport was implemented in the `logger` package to intercept and log the raw request/response bodies of all LLM and vector store calls. This "traffic interception" became a vital tool for debugging prompt engineering and understanding how the LLM interprets the provided context.
+A custom HTTP transport in `internal/logger/` intercepts and logs raw request/response bodies from LLM and vector store calls. This traffic logging is useful for debugging prompt engineering and understanding provider behavior.
 
-## Current State and Future
-Today, `code-gehirn` is a stable tool for local RAG. The architecture is modular, allowing for easy addition of new providers or UI frontends. 
+## Current State
+`code-gehirn` is a functional multi-interface RAG tool with modular architecture supporting multiple LLM providers and UI frontends. Both TUI and Web interfaces are functional; the system handles asynchronous search and summarization with proper cancellation and state management.
 
-**Future areas of exploration include:**
-- Expanding beyond Markdown to other text-based formats (code files, PDFs).
-- Stabilizing the Web UI for a production-ready experience.
-- Implementing advanced indexing techniques like recursive summarization for massive repositories.
+## Future Directions
+Potential areas for future work:
+- Support for additional document formats (code files, PDFs, HTML).
+- Advanced indexing strategies for very large repositories.
+- Additional provider integrations.
