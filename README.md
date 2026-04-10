@@ -82,7 +82,7 @@ Launch the full interactive experience:
 ```
 In the TUI:
 - **Search**: Type to search with real-time feedback.
-- **Navigate**: Use arrow keys or `j`/`k` to navigate results.
+- **Navigate**: Use arrow keys to navigate results.
 - **Preview**: View rendered markdown on the right/bottom as you navigate.
 - **Summarize**: Press `Enter` to generate an LLM summary of the search results.
 - **Quit**: Press `q` or `Ctrl+C` to exit.
