@@ -41,6 +41,11 @@ It indexes markdown files from a local repository into a [Qdrant](https://qdrant
 
 `code-gehirn` looks for a configuration file at `~/.config/code-gehirn/config.yaml` or `./config.yaml`.
 
+You can also specify a custom configuration file using the global `--config` flag:
+```bash
+./code-gehirn --config /path/to/config.yaml tui
+```
+
 Copy the example configuration and fill in your details:
 ```bash
 cp config.yaml.example config.yaml
@@ -63,6 +68,13 @@ Perform a quick search from the command line:
 ./code-gehirn search "How do I configure the database?"
 ```
 
+Available flags for `search`:
+- `-n`, `--top`: Number of results to return (default: 5).
+- `-t`, `--threshold`: Minimum similarity score (0.0–1.0) (default: 0.0).
+- `--urls`: Output only extracted URLs from the search results.
+- `--all`: When used with `--urls`, extract all URLs from the full source file instead of just the relevant chunk.
+- `--config`: (Global) Path to a specific configuration file.
+
 ### 3. Interactive TUI
 Launch the full interactive experience:
 ```bash
@@ -74,6 +86,13 @@ In the TUI:
 - **Preview**: View rendered markdown on the right/bottom as you navigate.
 - **Summarize**: Press `Enter` to generate an LLM summary of the search results.
 - **Quit**: Press `q` or `Ctrl+C` to exit.
+
+### 4. Web UI
+Launch the experimental web interface:
+```bash
+./code-gehirn web
+```
+The web UI is available at `http://localhost:8080` by default. You can change the port with the `-p` or `--port` flag.
 
 ## License
 
