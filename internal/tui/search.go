@@ -2,7 +2,9 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -19,6 +21,7 @@ import (
 type SearchModel struct {
 	store        qdrant.Store
 	minScore     float32
+	maxResults   int
 	input        textinput.Model
 	spinner      spinner.Model
 	preview      viewport.Model
@@ -30,9 +33,12 @@ type SearchModel struct {
 	status       string
 	width        int
 	height       int
+	cancelSearch context.CancelFunc
+	reqSeq       uint64
+	activeReq    uint64
 }
 
-func newSearchModel(store qdrant.Store, minScore float32) SearchModel {
+func newSearchModel(store qdrant.Store, minScore float32, maxResults int) SearchModel {
 	ti := textinput.New()
 	ti.Placeholder = "Type to search your markdown knowledge base..."
 	ti.Focus()
@@ -43,10 +49,11 @@ func newSearchModel(store qdrant.Store, minScore float32) SearchModel {
 	sp.Style = spinnerStyle
 
 	return SearchModel{
-		store:    store,
-		minScore: minScore,
-		input:    ti,
-		spinner:  sp,
+		store:      store,
+		minScore:   minScore,
+		maxResults: maxResults,
+		input:      ti,
+		spinner:    sp,
 	}
 }
 
@@ -59,12 +66,10 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		// Filter out terminal control sequences/OSC responses
-		if strings.HasPrefix(msg.String(), "]11;") || strings.HasPrefix(msg.String(), "\033") {
-			return m, nil
-		}
+		s := msg.String()
 
-		switch msg.String() {
+		// 1. Handle navigation first
+		switch s {
 		case "up":
 			if m.cursor > 0 {
 				m.cursor--
@@ -96,14 +101,31 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 			return m, nil
 		}
 
+		// 2. Filter input to alphanumeric + space only.
+		// This naturally breaks OSC sequences which contain non-alphanumeric
+		// chars like ;, :, \, and ].
+		if msg.Type == tea.KeyRunes {
+			for _, r := range msg.Runes {
+				if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == ' ') {
+					return m, nil
+				}
+			}
+		} else if strings.HasPrefix(s, "\033") || strings.Contains(s, ";") {
+			// Extra safety for terminal sequences
+			return m, nil
+		}
+
+		// 3. Pass through to text input (handles backspace, left/right, etc.)
 		var tiCmd tea.Cmd
 		m.input, tiCmd = m.input.Update(msg)
 		cmds = append(cmds, tiCmd)
 
 		if m.input.Value() != "" {
+			m.cancelInFlight()
 			m.loading = true
 			cmds = append(cmds, debounceCmd(m.input.Value()))
 		} else {
+			m.cancelInFlight()
 			m.results = nil
 			m.loading = false
 			m.status = ""
@@ -112,37 +134,51 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 
 	case doSearchMsg:
 		if msg.query == m.input.Value() {
-			cmds = append(cmds, m.searchCmd(msg.query), m.spinner.Tick)
-			cmds = append(cmds, func() tea.Msg {
-				return LogMsg{Message: fmt.Sprintf("Searching for '%s'...", msg.query)}
-			})
+			m.cancelInFlight()
+			ctx, cancel := context.WithCancel(context.Background())
+			m.cancelSearch = cancel
+			m.reqSeq++
+			m.activeReq = m.reqSeq
+			slog.Info("search", "query", msg.query)
+			cmds = append(cmds, m.searchCmd(ctx, msg.query, m.activeReq), m.spinner.Tick)
+			cmds = append(cmds, func() tea.Msg { return StatusMsg{Text: "Searching..."} })
 		}
 
 	case SearchResultMsg:
+		if msg.Request != m.activeReq || msg.Query != m.input.Value() {
+			return m, nil
+		}
+		m.cancelSearch = nil
 		m.loading = false
 		if msg.Err != nil {
+			// Ignore expected cancellation errors from superseded searches.
+			if errors.Is(msg.Err, context.Canceled) {
+				return m, nil
+			}
+			slog.Error("search failed", "query", msg.Query, "error", msg.Err)
 			m.status = msg.Err.Error()
-			cmds = append(cmds, func() tea.Msg {
-				return LogMsg{Message: "Search failed: " + msg.Err.Error()}
-			})
+			cmds = append(cmds, func() tea.Msg { return StatusMsg{Text: "Search error"} })
 		} else {
 			m.results = msg.Results
 			m.cursor = 0
 			if len(msg.Results) == 0 {
 				m.status = "no results"
-				cmds = append(cmds, func() tea.Msg {
-					return LogMsg{Message: "No results found."}
-				})
+				slog.Info("search complete", "query", msg.Query, "results", 0)
+				cmds = append(cmds, func() tea.Msg { return StatusMsg{Text: "No results"} })
 			} else {
 				m.status = fmt.Sprintf("%d found", len(msg.Results))
+				slog.Info("search complete", "query", msg.Query, "results", len(msg.Results))
 				cmds = append(cmds, func() tea.Msg {
-					return LogMsg{Message: fmt.Sprintf("Found %d results.", len(msg.Results))}
+					return StatusMsg{Text: fmt.Sprintf("Found %d results", len(msg.Results))}
 				})
 			}
 			m.updatePreview()
 		}
 
 	case spinner.TickMsg:
+		if !m.loading {
+			return m, nil
+		}
 		var spCmd tea.Cmd
 		m.spinner, spCmd = m.spinner.Update(msg)
 		cmds = append(cmds, spCmd)
@@ -157,18 +193,25 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 }
 
 func (m *SearchModel) updatePreview() {
-	if len(m.results) == 0 || m.cursor >= len(m.results) || m.renderer == nil {
+	if len(m.results) == 0 || m.cursor >= len(m.results) {
 		return
 	}
-	rendered, err := m.renderer.Render(m.results[m.cursor].Doc.PageContent)
-	if err != nil {
-		rendered = m.results[m.cursor].Doc.PageContent
+
+	content := m.results[m.cursor].Doc.PageContent
+	if m.renderer != nil {
+		if rendered, err := m.renderer.Render(content); err == nil {
+			content = rendered
+		}
 	}
-	m.preview.SetContent(rendered)
+
+	m.preview.SetContent(content)
 	m.preview.GotoTop()
 }
 
 func (m *SearchModel) SetSize(w, h int) {
+	if w <= 0 || h <= 0 {
+		return
+	}
 	m.width = w
 	m.height = h
 
@@ -180,14 +223,20 @@ func (m *SearchModel) SetSize(w, h int) {
 	}
 	m.preview = viewport.New(w-2, previewHeight)
 
+	// Update renderer with new width
+	wrap := w - 4
+	if wrap < 20 {
+		wrap = 20
+	}
+
 	r, err := glamour.NewTermRenderer(
-		glamour.WithStandardStyle("dark"),
-		glamour.WithWordWrap(w-4),
+		glamour.WithAutoStyle(),
+		glamour.WithWordWrap(wrap),
 	)
 	if err == nil {
 		m.renderer = r
-		m.updatePreview()
 	}
+	m.updatePreview()
 }
 
 func (m SearchModel) View() string {
@@ -265,9 +314,16 @@ func debounceCmd(query string) tea.Cmd {
 	})
 }
 
-func (m SearchModel) searchCmd(query string) tea.Cmd {
+func (m *SearchModel) cancelInFlight() {
+	if m.cancelSearch != nil {
+		m.cancelSearch()
+		m.cancelSearch = nil
+	}
+}
+
+func (m SearchModel) searchCmd(ctx context.Context, query string, request uint64) tea.Cmd {
 	return func() tea.Msg {
-		results, err := searcher.Search(context.Background(), m.store, query, 20, m.minScore)
-		return SearchResultMsg{Results: results, Err: err}
+		results, err := searcher.Search(ctx, m.store, query, m.maxResults, m.minScore)
+		return SearchResultMsg{Query: query, Request: request, Results: results, Err: err}
 	}
 }

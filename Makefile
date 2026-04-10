@@ -44,6 +44,8 @@ tidy:
 install: build
 	mkdir -p $(HOME)/bin
 	cp $(BINARY_NAME) $(HOME)/bin/$(BINARY_NAME)
+	mkdir -p $(HOME)/.config/code-gehirn
+	test -f $(HOME)/.config/code-gehirn/config.yaml || cp config.yaml.example $(HOME)/.config/code-gehirn/config.yaml
 
 help:
 	@echo "Usage:"
@@ -54,4 +56,4 @@ help:
 	@echo "  make fmt      - Format code"
 	@echo "  make vet      - Run go vet"
 	@echo "  make tidy     - Tidy go modules"
-	@echo "  make install  - Install binary to ~/bin"
+	@echo "  make install  - Install binary to ~/bin and create ~/.config/code-gehirn/config.yaml"

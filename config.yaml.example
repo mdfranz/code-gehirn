@@ -1,6 +1,6 @@
 qdrant:
   url: "http://localhost:6333"
-  collection: "code-gehirn"
+  # collection: "code-gehirn" (defaults to code-gehirn-hostname-os)
   api_key: ""  # optional, for Qdrant Cloud
 
 llm:
@@ -14,8 +14,21 @@ embedding:
   model: "text-embedding-3-small"
   api_key: ""         # required for openai
 
+log:
+  api_file: "~/.local/share/code-gehirn/api.log"  # HTTP/LLM/Qdrant request+response traffic
+  app_file: "~/.local/share/code-gehirn/app.log"  # Application lifecycle events and errors
+
+search:
+  min_score: 0.0     # minimum similarity score (0.0–1.0)
+  max_results: 15    # number of results to return
+
+summary:
+  top_k: 5           # number of top documents/files to use for summarization
+
 # All values can be overridden with GEHIRN_ env vars, e.g.:
 #   GEHIRN_LLM_PROVIDER=anthropic
 #   GEHIRN_LLM_API_KEY=sk-ant-...
 #   GEHIRN_EMBEDDING_PROVIDER=openai
 #   GEHIRN_EMBEDDING_API_KEY=sk-...
+#   GEHIRN_LOG_API_FILE=/tmp/api.log
+#   GEHIRN_LOG_APP_FILE=/tmp/app.log
