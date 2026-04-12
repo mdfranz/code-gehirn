@@ -24,6 +24,12 @@ The project focused on reliability, performance, and support for local-only work
 - **TUI Optimization**: UI lag was reduced through refactoring of asynchronous state management (`0462dff`).
 - **CLI Versatility**: A standalone `summarize` command was added (`f35831a`), providing more flexibility for piped workflows and custom prompts.
 
+### Phase 4: Operational Readiness & Error Resilience (April 12, 2026 – Evening)
+Refinements focused on observability, environment validation, and improved error feedback.
+- **Self-Diagnostics**: A new `check` command (`e1d6d4e`) was introduced to verify connectivity to Qdrant, LLM providers, and embedding models, alongside environment variable validation.
+- **Error Propagation**: Refactored error handling (`1000315`) to provide actionable feedback in the Web UI and prevent redundant CLI output, ensuring fatal initialization errors are correctly reported.
+- **Provider Stability**: Enhanced Google Gemini integration (`aeb7460`) and improved configuration handling for cloud providers.
+
 ## Evolution of Interfaces
 
 Each of `code-gehirn`'s three primary interfaces underwent a distinct evolutionary journey, driven by user feedback and the need for greater flexibility.
@@ -39,6 +45,10 @@ The TUI was built on the `Bubble Tea` framework for real-time interactivity. A c
 ### 3. Web UI: Browser-Based Access
 The Web UI provides browser-based access to search and summarization without terminal dependency.
 - **Milestone**: Introduced in `aa9f11c`, the web interface includes client-side search result deduplication, error handling, and preview rendering. It shares core search and summary logic with the TUI, enabling feature parity across interfaces.
+
+### 4. Check Command: Environment Verification
+A dedicated utility for system-level diagnostics and connectivity verification.
+- **Milestone**: Introduced in `e1d6d4e`, the `check` command performs end-to-end connectivity tests for Qdrant, the embedder, and the LLM. It reports on `GEHIRN_` prefixed environment variables and their common fallbacks (e.g., `OPENAI_API_KEY`), providing immediate feedback for configuration errors without starting the full TUI or Web server.
 
 ## Technical Challenges & Lessons
 
@@ -87,6 +97,16 @@ As search results grew and more data was being processed, the Bubble Tea TUI exp
 - **Solution**: Asynchronous processing in `internal/tui/` was refactored to offload blocking tasks like result rendering and summarization logic into separate `tea.Cmd` calls, preventing UI main-loop stalls.
 - **Lesson**: TUI performance is as sensitive to main-thread blocking as web interfaces. Offloading logic to commands and managing state updates through messages is critical for maintaining responsiveness.
 
+### 9. Silent Runtime Failures
+Early versions would fail silently or with redundant Cobra help messages when initialization errors occurred (e.g., missing API keys or Qdrant connection issues), especially in the TUI.
+- **Solution**: Refactored error propagation (`1000315`) to silence redundant usage messages on runtime errors and ensure TUI fatal errors exit with non-zero status codes. Web API responses now include specific advice (e.g., "Run 'index' command first") when collections are missing.
+- **Lesson**: User experience is directly tied to error clarity. Redundant or cryptic error messages hinder debugging and adoption.
+
+### 10. Environment & Connectivity Blind Spots
+With multiple providers and local/cloud combinations, it became difficult to determine if a failure was due to code, configuration, or network connectivity.
+- **Solution**: The `check` command (`e1d6d4e`, `aeb7460`) was implemented to provide a "pre-flight" check, validating connectivity to all core services and reporting environment variable status in a single, color-coded report.
+- **Lesson**: Complex RAG systems benefit from dedicated diagnostic tools that separate infrastructure issues from application logic.
+
 ## Core Milestones
 
 ### 1. Foundation (Initial Prototype)
@@ -124,6 +144,9 @@ The addition of Ollama support marks a significant milestone in privacy and cost
 ### 7. Modular CLI Tools
 The introduction of a standalone `summarize` CLI command (`cmd/summarize.go`) allows `code-gehirn` to be used in shell pipelines, separating search from summarization and enabling more complex automation.
 
+### 8. Self-Diagnostic & Operational Stability
+The addition of the `check` command and improved error propagation ensure that the system is easy to debug and provides clear, actionable feedback for configuration and connectivity issues.
+
 ## Design Rationale & Key Decisions
 
 ### Summarization Strategy: Global vs Per-File
@@ -142,7 +165,7 @@ The dual-logging approach (app.log for lifecycle, api.log for provider traffic) 
 - **Solution**: Redirect stderr to app.log and separately capture all request/response bodies via custom HTTP transport to api.log. Users get a clean TUI; developers get full debugging context.
 
 ## Current State
-`code-gehirn` is a functional multi-interface RAG tool with modular architecture supporting both local (Ollama) and cloud (OpenAI, Anthropic, Gemini) LLM providers. As of April 12, 2026, the system is robust against embedding mismatches, features a high-performance TUI, and provides a standalone CLI for summarization tasks.
+`code-gehirn` is a functional multi-interface RAG tool with modular architecture supporting both local (Ollama) and cloud (OpenAI, Anthropic, Gemini) LLM providers. As of April 12, 2026, the system features a robust diagnostic suite via the `check` command, improved error resilience across all interfaces, and refined support for the Google Gemini provider.
 
 ## Future Directions
 Potential areas for future work:
