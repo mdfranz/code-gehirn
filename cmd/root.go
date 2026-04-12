@@ -19,7 +19,13 @@ var rootCmd = &cobra.Command{
 	Short: "Semantic search and summarization for your markdown knowledge base",
 	Long: `code-gehirn indexes a local git repo of markdown files into Qdrant,
 enabling semantic search and LLM-powered summarization via an interactive TUI.`,
+	SilenceErrors: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// Once we reach PersistentPreRunE, flags and args have been validated.
+		// From this point on, any error returned from RunE is a runtime error,
+		// and we don't want to show the usage/help text.
+		cmd.SilenceUsage = true
+
 		var err error
 		cfg, err = config.Load(cfgFile)
 		if err != nil {
@@ -31,7 +37,7 @@ enabling semantic search and LLM-powered summarization via an interactive TUI.`,
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }

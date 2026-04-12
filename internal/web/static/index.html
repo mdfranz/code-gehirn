@@ -553,7 +553,10 @@
                     this.selectedPath = '';
                     try {
                         const resp = await fetch(`/api/search?q=${encodeURIComponent(this.query)}`);
-                        if (!resp.ok) throw new Error('Search failed');
+                        if (!resp.ok) {
+                            const text = await resp.text();
+                            throw new Error(text || 'Search failed');
+                        }
                         const data = await resp.json();
                         const raw = Array.isArray(data) ? data : [];
                         const seen = new Set();
@@ -597,7 +600,10 @@
                     this.errorMessage = '';
                     try {
                         const resp = await fetch(`/api/content?path=${encodeURIComponent(path)}`);
-                        if (!resp.ok) throw new Error('Failed to load file content');
+                        if (!resp.ok) {
+                            const text = await resp.text();
+                            throw new Error(text || 'Failed to load file content');
+                        }
                         this.fileContent = await resp.text();
                     } catch (e) {
                         this.fileContent = '';
@@ -615,7 +621,10 @@
                     this.fileContent = '';
                     try {
                         const resp = await fetch(`/api/summarize?q=${encodeURIComponent(this.query)}`);
-                        if (!resp.ok) throw new Error('Summarization failed');
+                        if (!resp.ok) {
+                            const text = await resp.text();
+                            throw new Error(text || 'Summarization failed');
+                        }
                         const data = await resp.json();
                         this.summary = data.summary;
                     } catch (e) {

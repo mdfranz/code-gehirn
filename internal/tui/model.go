@@ -42,6 +42,7 @@ type AppModel struct {
 	storeReady   bool
 	initializing bool
 	status       string
+	fatalErr     error
 }
 
 func NewAppModel(cfg config.Config) AppModel {
@@ -62,6 +63,10 @@ type initStageMsg struct {
 	stage   string
 	payload interface{}
 	err     error
+}
+
+func (m AppModel) FatalErr() error {
+	return m.fatalErr
 }
 
 func (m AppModel) Init() tea.Cmd {
@@ -114,6 +119,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case initStageMsg:
 		if msg.err != nil {
 			slog.Error("initialization failed", "stage", msg.stage, "error", msg.err)
+			m.fatalErr = msg.err
+			m.status = "Fatal error during initialization"
 			switch msg.stage {
 			case "embedder":
 				m.initLogs[0] = errorStyle.Render(m.initLogs[0] + " FAILED: " + msg.err.Error())
@@ -122,6 +129,10 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "store":
 				m.initLogs[2] = errorStyle.Render(m.initLogs[2] + " FAILED: " + msg.err.Error())
 			}
+			return m, tea.Quit
+		}
+
+		if m.fatalErr != nil {
 			return m, tea.Quit
 		}
 

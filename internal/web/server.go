@@ -3,11 +3,13 @@ package web
 import (
 	"embed"
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/mfranz/code-gehirn/internal/config"
 	"github.com/mfranz/code-gehirn/internal/runtime"
@@ -113,7 +115,12 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	results, err := searcher.Search(r.Context(), s.store, query, topN, float32(s.cfg.Search.MinScore))
 	if err != nil {
 		slog.Error("search failed", "query", query, "error", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		msg := err.Error()
+		slog.Info("error message content", "msg", msg)
+		if strings.Contains(msg, "doesn't exist") {
+			msg = fmt.Sprintf("Collection '%s' does not exist. Did you run 'code-gehirn index' yet?", s.cfg.Qdrant.Collection)
+		}
+		http.Error(w, msg, http.StatusInternalServerError)
 		return
 	}
 
@@ -139,7 +146,11 @@ func (s *Server) handleSummarize(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		slog.Error("summarize failed", "query", query, "error", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		msg := err.Error()
+		if strings.Contains(msg, "doesn't exist") {
+			msg = fmt.Sprintf("Collection '%s' does not exist. Did you run 'code-gehirn index' yet?", s.cfg.Qdrant.Collection)
+		}
+		http.Error(w, msg, http.StatusInternalServerError)
 		return
 	}
 

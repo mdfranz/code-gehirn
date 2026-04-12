@@ -53,9 +53,9 @@ var summarizeCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Println("\n---\n")
+		fmt.Println("\n---")
 		fmt.Println(summary)
-		fmt.Println("\n---\n")
+		fmt.Println("\n---")
 		return nil
 	},
 }

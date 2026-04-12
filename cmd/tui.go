@@ -21,7 +21,13 @@ var tuiCmd = &cobra.Command{
 		}
 		m := tuipkg.NewAppModel(*cfg)
 		p := tea.NewProgram(m, tea.WithAltScreen())
-		_, err := p.Run()
-		return err
+		finalModel, err := p.Run()
+		if err != nil {
+			return err
+		}
+		if am, ok := finalModel.(tuipkg.AppModel); ok {
+			return am.FatalErr()
+		}
+		return nil
 	},
 }
