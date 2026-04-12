@@ -167,7 +167,13 @@ You can also specify a custom configuration file using the global `--config` fla
 
 ## Usage
 
-### 1. Indexing
+### 1. Configuration Check
+Verify your environment variables and connectivity to external resources:
+```bash
+./code-gehirn check
+```
+
+### 2. Indexing
 Index your markdown files into Qdrant:
 ```bash
 ./code-gehirn index /path/to/your/markdown/repo
