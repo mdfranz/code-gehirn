@@ -34,8 +34,21 @@ func New(cfg config.QdrantConfig, embedder embeddings.Embedder) (qdrant.Store, e
 }
 
 // EnsureCollection creates the Qdrant collection if it doesn't already exist.
-// vectorSize must match the embedding model's output dimension.
-func EnsureCollection(ctx context.Context, cfg config.QdrantConfig, vectorSize int) error {
+// If it exists, it verifies that the vector dimension matches vectorSize.
+func EnsureCollection(ctx context.Context, cfg config.QdrantConfig, vectorSize int, modelName string) error {
+	// First check if it exists and what its dimension is
+	info, err := GetCollectionInfo(ctx, cfg)
+	if err == nil {
+		// Collection exists, check dimension
+		if info.VectorSize != vectorSize {
+			return fmt.Errorf("dimension mismatch: existing collection %q uses %d dimensions, but current embedding model %q produces %d dimensions.\n\nTo resolve this:\n1. Use a different collection name: export GEHIRN_QDRANT_COLLECTION=%s-new\n2. Or delete the existing collection from Qdrant",
+				cfg.Collection, info.VectorSize, modelName, vectorSize, cfg.Collection)
+		}
+		slog.Info("qdrant collection already exists with correct dimension", "collection", cfg.Collection, "vector_size", vectorSize)
+		return nil
+	}
+
+	// Collection doesn't exist (or error fetching), try to create it
 	body, err := json.Marshal(map[string]any{
 		"vectors": map[string]any{
 			"size":     vectorSize,
@@ -65,12 +78,16 @@ func EnsureCollection(ctx context.Context, cfg config.QdrantConfig, vectorSize i
 	}
 	defer resp.Body.Close()
 
-	// 200 = created, 409 = already exists — both are fine
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusConflict {
+	if resp.StatusCode == http.StatusConflict {
+		// Just in case of a race, check again
+		return EnsureCollection(ctx, cfg, vectorSize, modelName)
+	}
+
+	if resp.StatusCode != http.StatusOK {
 		slog.Error("qdrant ensure_collection unexpected status", "collection", cfg.Collection, "status", resp.StatusCode)
 		return fmt.Errorf("qdrant returned unexpected status %d when creating collection %q", resp.StatusCode, cfg.Collection)
 	}
-	slog.Info("qdrant ensure_collection", "collection", cfg.Collection, "vector_size", vectorSize, "status", resp.StatusCode, "latency_ms", latency)
+	slog.Info("qdrant ensure_collection created", "collection", cfg.Collection, "vector_size", vectorSize, "status", resp.StatusCode, "latency_ms", latency)
 	return nil
 }
 
