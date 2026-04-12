@@ -109,7 +109,7 @@ export GEHIRN_EMBEDDING_PROVIDER=ollama
 export GEHIRN_EMBEDDING_MODEL=nomic-embed-text
 
 # Optional: Override the default collection name. 
-# By default, code-gehirn uses: code-gehirn-<hostname>-<os>-<model-shorthash>
+# By default, code-gehirn uses: code-gehirn-<hostname>-<os>-<model-shortname>-<shorthash>
 # export GEHIRN_QDRANT_COLLECTION=code-gehirn-ollama
 ```
 
@@ -119,7 +119,7 @@ Update your `config.yaml` with the following:
 ```yaml
 qdrant:
   url: "http://localhost:6333"
-  # collection: "code-gehirn-ollama" (optional, defaults to code-gehirn-hostname-os-shorthash)
+  # collection: "code-gehirn-ollama" (optional, defaults to code-gehirn-hostname-os-shortname-shorthash)
 
 llm:
   provider: "ollama"
@@ -132,7 +132,7 @@ embedding:
   base_url: "http://localhost:11434"
 ```
 
-> **Note:** Different embedding models (e.g., OpenAI vs. Ollama) produce different vector dimensions. `code-gehirn` automatically appends a short hash of the embedding model name to its default collection name to prevent dimension mismatch errors when switching models. If you manually set a collection name, you are responsible for ensuring it matches the model's dimensions.
+> **Note:** Different embedding models (e.g., OpenAI vs. Ollama) produce different vector dimensions. `code-gehirn` automatically appends the model's shortname and a short hash of the full model name to its default collection name to prevent dimension mismatch errors. If you manually set a collection name, you are responsible for ensuring it matches the model's dimensions.
 
 ### Full Environment Variable Reference
 

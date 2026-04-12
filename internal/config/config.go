@@ -115,16 +115,20 @@ func Load(cfgFile string) (*Config, error) {
 		cfg.VaultPath = wd
 	}
 
-	// Set default collection name if not provided: code-gehirn-hostname-os-shorthash
+	// Set default collection name if not provided: code-gehirn-hostname-os-shortname-shorthash
 	if cfg.Qdrant.Collection == "" {
 		hostname, err := os.Hostname()
 		if err != nil {
 			hostname = "unknown"
 		}
-		// Calculate short hash of the embedding model name
-		hash := sha256.Sum256([]byte(cfg.Embedding.Model))
+		// Extract shortname from model (e.g. nomic-embed-text -> nomic)
+		modelName := cfg.Embedding.Model
+		shortName := strings.Split(strings.Split(modelName, "-")[0], ":")[0]
+
+		// Calculate short hash of the full model name for uniqueness
+		hash := sha256.Sum256([]byte(modelName))
 		shortHash := fmt.Sprintf("%x", hash)[:8]
-		cfg.Qdrant.Collection = fmt.Sprintf("code-gehirn-%s-%s-%s", hostname, runtime.GOOS, shortHash)
+		cfg.Qdrant.Collection = fmt.Sprintf("code-gehirn-%s-%s-%s-%s", hostname, runtime.GOOS, shortName, shortHash)
 	}
 
 	return &cfg, nil
