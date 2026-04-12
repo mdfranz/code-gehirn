@@ -1,6 +1,7 @@
 package config
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"os"
 	"runtime"
@@ -73,14 +74,7 @@ func Load(cfgFile string) (*Config, error) {
 	v.AutomaticEnv()
 
 	// Defaults
-	hostname, err := os.Hostname()
-	if err != nil {
-		hostname = "unknown"
-	}
-	collectionName := fmt.Sprintf("code-gehirn-%s-%s", hostname, runtime.GOOS)
-
 	v.SetDefault("qdrant.url", "http://localhost:6333")
-	v.SetDefault("qdrant.collection", collectionName)
 	v.SetDefault("llm.provider", "openai")
 	v.SetDefault("llm.model", "gpt-5-mini")
 	v.SetDefault("llm.max_tokens", 16384)
@@ -120,5 +114,18 @@ func Load(cfgFile string) (*Config, error) {
 		}
 		cfg.VaultPath = wd
 	}
+
+	// Set default collection name if not provided: code-gehirn-hostname-os-shorthash
+	if cfg.Qdrant.Collection == "" {
+		hostname, err := os.Hostname()
+		if err != nil {
+			hostname = "unknown"
+		}
+		// Calculate short hash of the embedding model name
+		hash := sha256.Sum256([]byte(cfg.Embedding.Model))
+		shortHash := fmt.Sprintf("%x", hash)[:8]
+		cfg.Qdrant.Collection = fmt.Sprintf("code-gehirn-%s-%s-%s", hostname, runtime.GOOS, shortHash)
+	}
+
 	return &cfg, nil
 }

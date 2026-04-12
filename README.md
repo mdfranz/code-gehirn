@@ -108,8 +108,9 @@ export GEHIRN_LLM_MODEL=llama3
 export GEHIRN_EMBEDDING_PROVIDER=ollama
 export GEHIRN_EMBEDDING_MODEL=nomic-embed-text
 
-# Use a specific collection for Ollama (recommended to avoid dimension conflicts)
-export GEHIRN_QDRANT_COLLECTION=code-gehirn-ollama
+# Optional: Override the default collection name. 
+# By default, code-gehirn uses: code-gehirn-<hostname>-<os>-<model-shorthash>
+# export GEHIRN_QDRANT_COLLECTION=code-gehirn-ollama
 ```
 
 #### Via config.yaml
@@ -118,7 +119,7 @@ Update your `config.yaml` with the following:
 ```yaml
 qdrant:
   url: "http://localhost:6333"
-  collection: "code-gehirn-ollama"
+  # collection: "code-gehirn-ollama" (optional, defaults to code-gehirn-hostname-os-shorthash)
 
 llm:
   provider: "ollama"
@@ -131,7 +132,7 @@ embedding:
   base_url: "http://localhost:11434"
 ```
 
-> **Note:** Different embedding models (e.g., OpenAI vs. Ollama) produce different vector dimensions. If you switch models, you must use a new collection name or delete the existing collection in Qdrant.
+> **Note:** Different embedding models (e.g., OpenAI vs. Ollama) produce different vector dimensions. `code-gehirn` automatically appends a short hash of the embedding model name to its default collection name to prevent dimension mismatch errors when switching models. If you manually set a collection name, you are responsible for ensuring it matches the model's dimensions.
 
 ### Full Environment Variable Reference
 
