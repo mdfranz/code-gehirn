@@ -58,6 +58,12 @@ var checkCmd = &cobra.Command{
 		printEnvVar("GEHIRN_LLM_PROVIDER", cfg.LLM.Provider)
 		printEnvVar("GEHIRN_LLM_MODEL", cfg.LLM.Model)
 		printEnvVar("GEHIRN_LLM_API_KEY", maskKey(cfg.LLM.APIKey))
+		if cfg.LLM.Project != "" {
+			printEnvVar("GEHIRN_LLM_PROJECT", cfg.LLM.Project)
+		}
+		if cfg.LLM.Location != "" {
+			printEnvVar("GEHIRN_LLM_LOCATION", cfg.LLM.Location)
+		}
 		printEnvVar("GEHIRN_EMBEDDING_PROVIDER", cfg.Embedding.Provider)
 		printEnvVar("GEHIRN_EMBEDDING_MODEL", cfg.Embedding.Model)
 		printEnvVar("GEHIRN_EMBEDDING_API_KEY", maskKey(cfg.Embedding.APIKey))
@@ -69,10 +75,22 @@ var checkCmd = &cobra.Command{
 		if os.Getenv("ANTHROPIC_API_KEY") != "" && cfg.LLM.APIKey == "" {
 			printEnvVar("ANTHROPIC_API_KEY (fallback)", maskKey(os.Getenv("ANTHROPIC_API_KEY")))
 		}
+		if os.Getenv("GEMINI_API_KEY") != "" && cfg.LLM.APIKey == "" {
+			printEnvVar("GEMINI_API_KEY (fallback)", maskKey(os.Getenv("GEMINI_API_KEY")))
+		}
 		if os.Getenv("GOOGLE_API_KEY") != "" && cfg.LLM.APIKey == "" {
 			printEnvVar("GOOGLE_API_KEY (fallback)", maskKey(os.Getenv("GOOGLE_API_KEY")))
 		}
-
+		if os.Getenv("GOOGLE_CLOUD_PROJECT") != "" && cfg.LLM.Project == "" {
+			printEnvVar("GOOGLE_CLOUD_PROJECT (fallback)", os.Getenv("GOOGLE_CLOUD_PROJECT"))
+		}
+		if os.Getenv("GOOGLE_CLOUD_LOCATION") != "" && cfg.LLM.Location == "" {
+			printEnvVar("GOOGLE_CLOUD_LOCATION (fallback)", os.Getenv("GOOGLE_CLOUD_LOCATION"))
+		}
+		if os.Getenv("GOOGLE_APPLICATION_CREDENTIALS") != "" {
+			printEnvVar("GOOGLE_ADC (fallback)", os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
+		}
+		fmt.Println()
 		fmt.Println(headerStyle.Render("--- ⚡ Connectivity Checks ---"))
 
 		// Qdrant

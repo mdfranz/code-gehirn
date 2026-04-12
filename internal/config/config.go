@@ -22,6 +22,8 @@ type LLMConfig struct {
 	APIKey    string `mapstructure:"api_key"`
 	BaseURL   string `mapstructure:"base_url"`
 	MaxTokens int    `mapstructure:"max_tokens"`
+	Project   string `mapstructure:"project"`
+	Location  string `mapstructure:"location"`
 }
 
 type EmbeddingConfig struct {
