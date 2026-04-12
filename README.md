@@ -186,7 +186,17 @@ Available flags for `search`:
 - `--all`: When used with `--urls`, extract all URLs from the full source file instead of just the relevant chunk.
 - `--config`: (Global) Path to a specific configuration file.
 
-### 3. Interactive TUI
+### 3. LLM Summarization (CLI)
+Generate a summary of search results:
+```bash
+./code-gehirn summarize "Summarize recent project updates"
+```
+
+Available flags for `summarize`:
+- `-k`, `--top`: Number of documents to use for summarization (default: 5).
+- `-m`, `--tokens`: Maximum tokens to generate (default: 16384).
+
+### 4. Interactive TUI
 Launch the full interactive experience:
 ```bash
 ./code-gehirn tui
@@ -198,7 +208,7 @@ In the TUI:
 - **Summarize**: Press `Enter` to generate an LLM summary of the search results.
 - **Quit**: Press `q` or `Ctrl+C` to exit.
 
-### 4. Web UI
+### 5. Web UI
 Launch the experimental web interface:
 ```bash
 ./code-gehirn web
