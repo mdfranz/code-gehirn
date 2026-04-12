@@ -17,6 +17,13 @@ The project expanded beyond the core TUI to support multiple interfaces and impr
 - **Web and TUI Consolidation**: Both interfaces were refined (`cd8476a`, `350bcad`) to share core search and summarization logic.
 - **Integration & Merge**: The webui branch was merged into `main` (`3ca92be`), establishing a stable multi-interface architecture.
 
+### Phase 3: Robustness & Local-First Expansion (April 10–12, 2026)
+The project focused on reliability, performance, and support for local-only workflows.
+- **Ollama Integration**: Support for local LLMs and embedding models via Ollama was added (`8a5124a`), enabling completely private, offline operations.
+- **Vector Store Robustness**: Improved handling of embedding dimension mismatches (`b2802fe`) and automated collection isolation (`728390e`, `cc20ddd`) ensured stability across different models.
+- **TUI Optimization**: UI lag was reduced through refactoring of asynchronous state management (`0462dff`).
+- **CLI Versatility**: A standalone `summarize` command was added (`f35831a`), providing more flexibility for piped workflows and custom prompts.
+
 ## Evolution of Interfaces
 
 Each of `code-gehirn`'s three primary interfaces underwent a distinct evolutionary journey, driven by user feedback and the need for greater flexibility.
@@ -64,11 +71,21 @@ Early TUI startup was sequential: embedder → LLM → vector store, leading to 
 ### 6. Configuration & Multi-Environment Collisions
 Two configuration issues emerged during multi-environment testing:
 - **Collection Name Collisions**: Multiple users sharing a single Qdrant instance can overwrite each other's indexes with the default "code-gehirn" collection name.
-    - **Solution**: Default collection name now incorporates hostname and OS (e.g., `code-gehirn-hostname-linux`) for uniqueness across environments.
-    - **Lesson**: Environment-specific defaults are essential when software runs in shared systems. This issue was invisible during single-user development but critical in production.
+    - **Solution**: Default collection name now incorporates hostname, OS, and model shortname/shorthash (e.g., `code-gehirn-host-linux-nomic-abcdef12`) for unique isolation.
+    - **Lesson**: Environment-specific defaults are essential when software runs in shared systems.
 - **Path Resolution**: Configuration files use `~/` for home directory paths, but Viper (the config library) does not expand tildes automatically.
     - **Solution**: Custom path expansion in `internal/config/config.go` manually resolves `~/` before application initialization.
     - **Lesson**: Many Go libraries assume paths are already expanded. Configuration handling must account for platform conventions beyond what the library provides.
+
+### 7. Embedding Model Incompatibility
+Switching between embedding models (e.g., OpenAI to Ollama) often causes dimension mismatches in existing vector collections, leading to cryptic server-side errors.
+- **Solution**: The `store` package now verifies collection metadata on startup. If a dimension mismatch is detected, it provides a clear error message explaining how to resolve it (either by specifying a new collection or deleting the existing one).
+- **Lesson**: Robust RAG systems must proactively validate the compatibility of their embedding models with the stored data to provide a seamless developer experience.
+
+### 8. TUI Blocking & Lag
+As search results grew and more data was being processed, the Bubble Tea TUI experienced noticeable lag during long-running operations.
+- **Solution**: Asynchronous processing in `internal/tui/` was refactored to offload blocking tasks like result rendering and summarization logic into separate `tea.Cmd` calls, preventing UI main-loop stalls.
+- **Lesson**: TUI performance is as sensitive to main-thread blocking as web interfaces. Offloading logic to commands and managing state updates through messages is critical for maintaining responsiveness.
 
 ## Core Milestones
 
@@ -101,6 +118,12 @@ Two interface types and multiple LLM providers are now supported:
 ### 5. Observability and Debugging
 A custom HTTP transport in `internal/logger/` intercepts and logs raw request/response bodies from LLM and vector store calls. This traffic logging is useful for debugging prompt engineering and understanding provider behavior.
 
+### 6. Local-First Power (Ollama Integration)
+The addition of Ollama support marks a significant milestone in privacy and cost-efficiency. Users can now run both the LLM and the embedding model locally, keeping all data within their own infrastructure.
+
+### 7. Modular CLI Tools
+The introduction of a standalone `summarize` CLI command (`cmd/summarize.go`) allows `code-gehirn` to be used in shell pipelines, separating search from summarization and enabling more complex automation.
+
 ## Design Rationale & Key Decisions
 
 ### Summarization Strategy: Global vs Per-File
@@ -119,7 +142,7 @@ The dual-logging approach (app.log for lifecycle, api.log for provider traffic) 
 - **Solution**: Redirect stderr to app.log and separately capture all request/response bodies via custom HTTP transport to api.log. Users get a clean TUI; developers get full debugging context.
 
 ## Current State
-`code-gehirn` is a functional multi-interface RAG tool with modular architecture supporting multiple LLM providers and UI frontends. Both TUI and Web interfaces are functional; the system handles asynchronous search and summarization with proper cancellation and state management.
+`code-gehirn` is a functional multi-interface RAG tool with modular architecture supporting both local (Ollama) and cloud (OpenAI, Anthropic, Gemini) LLM providers. As of April 12, 2026, the system is robust against embedding mismatches, features a high-performance TUI, and provides a standalone CLI for summarization tasks.
 
 ## Future Directions
 Potential areas for future work:
