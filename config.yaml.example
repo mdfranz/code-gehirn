@@ -13,6 +13,7 @@ embedding:
   provider: "openai"  # ollama | openai
   model: "text-embedding-3-small"
   api_key: ""         # required for openai
+  base_url: ""        # optional override (e.g. for local Ollama/OpenAI-compat server)
 
 log:
   api_file: "~/.local/share/code-gehirn/api.log"  # HTTP/LLM/Qdrant request+response traffic

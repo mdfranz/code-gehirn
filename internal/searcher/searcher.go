@@ -34,10 +34,13 @@ func Search(ctx context.Context, store qdrant.Store, query string, topN int, min
 
 	results := make([]Result, len(docs))
 	for i, d := range docs {
+		title := extractTitle(d)
+		path := extractPath(d)
+		slog.Info("search result", "index", i, "title", title, "score", d.Score, "path", path)
 		results[i] = Result{
 			Doc:   d,
-			Title: extractTitle(d),
-			Path:  extractPath(d),
+			Title: title,
+			Path:  path,
 			Score: d.Score,
 		}
 	}

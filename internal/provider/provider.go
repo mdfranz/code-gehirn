@@ -58,6 +58,9 @@ func NewEmbedder(cfg config.EmbeddingConfig) (embeddings.Embedder, error) {
 	switch cfg.Provider {
 	case "ollama":
 		opts := []ollama.Option{ollama.WithModel(cfg.Model)}
+		if cfg.BaseURL != "" {
+			opts = append(opts, ollama.WithServerURL(cfg.BaseURL))
+		}
 		llm, err := ollama.New(opts...)
 		if err != nil {
 			return nil, fmt.Errorf("creating ollama embedder client: %w", err)

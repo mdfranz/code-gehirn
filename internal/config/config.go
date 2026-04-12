@@ -1,6 +1,7 @@
 package config
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"os"
 	"runtime"
@@ -27,6 +28,7 @@ type EmbeddingConfig struct {
 	Provider string `mapstructure:"provider"`
 	Model    string `mapstructure:"model"`
 	APIKey   string `mapstructure:"api_key"`
+	BaseURL  string `mapstructure:"base_url"`
 }
 
 type SearchConfig struct {
@@ -72,14 +74,7 @@ func Load(cfgFile string) (*Config, error) {
 	v.AutomaticEnv()
 
 	// Defaults
-	hostname, err := os.Hostname()
-	if err != nil {
-		hostname = "unknown"
-	}
-	collectionName := fmt.Sprintf("code-gehirn-%s-%s", hostname, runtime.GOOS)
-
 	v.SetDefault("qdrant.url", "http://localhost:6333")
-	v.SetDefault("qdrant.collection", collectionName)
 	v.SetDefault("llm.provider", "openai")
 	v.SetDefault("llm.model", "gpt-5-mini")
 	v.SetDefault("llm.max_tokens", 16384)
@@ -119,5 +114,22 @@ func Load(cfgFile string) (*Config, error) {
 		}
 		cfg.VaultPath = wd
 	}
+
+	// Set default collection name if not provided: code-gehirn-hostname-os-shortname-shorthash
+	if cfg.Qdrant.Collection == "" {
+		hostname, err := os.Hostname()
+		if err != nil {
+			hostname = "unknown"
+		}
+		// Extract shortname from model (e.g. nomic-embed-text -> nomic)
+		modelName := cfg.Embedding.Model
+		shortName := strings.Split(strings.Split(modelName, "-")[0], ":")[0]
+
+		// Calculate short hash of the full model name for uniqueness
+		hash := sha256.Sum256([]byte(modelName))
+		shortHash := fmt.Sprintf("%x", hash)[:8]
+		cfg.Qdrant.Collection = fmt.Sprintf("code-gehirn-%s-%s-%s-%s", hostname, runtime.GOOS, shortName, shortHash)
+	}
+
 	return &cfg, nil
 }

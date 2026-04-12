@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"github.com/mfranz/code-gehirn/internal/config"
+	"github.com/mfranz/code-gehirn/internal/runtime"
 	"github.com/mfranz/code-gehirn/internal/searcher"
 	"github.com/mfranz/code-gehirn/internal/summarizer"
 	"github.com/mfranz/code-gehirn/internal/vault"
@@ -45,9 +46,30 @@ func (s *Server) Start(addr string) error {
 	mux.HandleFunc("/api/search", s.handleSearch)
 	mux.HandleFunc("/api/summarize", s.handleSummarize)
 	mux.HandleFunc("/api/content", s.handleContent)
+	mux.HandleFunc("/api/config", s.handleConfig)
 
 	slog.Info("Starting web server", "addr", addr)
 	return http.ListenAndServe(addr, mux)
+}
+
+func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
+	configInfo := map[string]any{
+		"llm_provider":       s.cfg.LLM.Provider,
+		"llm_model":          s.cfg.LLM.Model,
+		"embedding_provider": s.cfg.Embedding.Provider,
+		"embedding_model":    s.cfg.Embedding.Model,
+		"qdrant_collection":  s.cfg.Qdrant.Collection,
+	}
+
+	if info, err := runtime.GetCollectionInfo(s.cfg); err == nil {
+		configInfo["collection_status"] = info.Status
+		configInfo["collection_points"] = info.PointsCount
+		configInfo["collection_vector_size"] = info.VectorSize
+		configInfo["collection_segments"] = info.Segments
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(configInfo)
 }
 
 func (s *Server) handleContent(w http.ResponseWriter, r *http.Request) {

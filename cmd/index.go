@@ -28,8 +28,8 @@ var indexCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("probing embedding dimension: %w", err)
 		}
-		if err := store.EnsureCollection(ctx, cfg.Qdrant, len(vec)); err != nil {
-			return fmt.Errorf("ensuring collection: %w", err)
+		if err := store.EnsureCollection(ctx, cfg.Qdrant, len(vec), cfg.Embedding.Model); err != nil {
+			return err
 		}
 
 		fmt.Printf("Indexing %s into collection %q...\n", repoPath, cfg.Qdrant.Collection)

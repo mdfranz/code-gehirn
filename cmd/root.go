@@ -40,6 +40,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: $HOME/.config/code-gehirn/config.yaml or ./config.yaml)")
 	rootCmd.AddCommand(indexCmd)
 	rootCmd.AddCommand(searchCmd)
+	rootCmd.AddCommand(summarizeCmd)
 	rootCmd.AddCommand(tuiCmd)
 	rootCmd.AddCommand(webCmd)
 }

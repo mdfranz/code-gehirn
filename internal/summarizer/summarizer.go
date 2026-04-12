@@ -72,11 +72,12 @@ func summarizeFromFiles(ctx context.Context, store qdrant.Store, llm llms.Model,
 
 	context := strings.Join(parts, "\n\n---\n\n")
 	prompt := fmt.Sprintf(
-		"Use the following documents to answer the question or provide info on the topic keywords. "+
-			"If the answer is not in the documents, say so.\n\n"+
-			"%s\n\n"+
-			"Question: %s\nAnswer:",
-		context, query,
+		"Use the following documents to provide a detailed answer or summary for the topic: %s\n\n"+
+			"Documents:\n%s\n\n"+
+			"If the information is not present in the documents, explain what is available or state that the specific topic isn't covered. "+
+			"Focus on providing a helpful synthesis of the relevant parts.\n\n"+
+			"Summary/Answer:",
+		query, context,
 	)
 
 	slog.Info("llm summarize start (full files)", "query", query, "files", len(parts))

@@ -1,6 +1,9 @@
 package tui
 
-import "github.com/mfranz/code-gehirn/internal/searcher"
+import (
+	"github.com/mfranz/code-gehirn/internal/searcher"
+	"github.com/mfranz/code-gehirn/internal/store"
+)
 
 // SearchResultMsg is dispatched when an async search completes.
 type SearchResultMsg struct {
@@ -31,3 +34,9 @@ type doSearchMsg struct{ query string }
 // switchToSummaryMsg is sent by SearchModel to the root AppModel
 // to trigger a screen transition to the summary view.
 type switchToSummaryMsg struct{ query string }
+
+// collectionInfoMsg carries metadata about the vector collection.
+type collectionInfoMsg struct {
+	info *store.CollectionInfo
+	err  error
+}
