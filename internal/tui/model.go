@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mfranz/code-gehirn/internal/config"
 	"github.com/mfranz/code-gehirn/internal/runtime"
+	"github.com/mfranz/code-gehirn/internal/store"
 	"github.com/tmc/langchaingo/embeddings"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/vectorstores/qdrant"
@@ -24,15 +25,16 @@ const (
 // AppModel is the root Bubble Tea model. It owns store/LLM references and
 // delegates to sub-models based on the active screen.
 type AppModel struct {
-	config       config.Config
-	embedder     embeddings.Embedder
-	store        qdrant.Store
-	llm          llms.Model
-	width        int
-	height       int
-	activeScreen screen
-	searchModel  SearchModel
-	summaryModel SummaryModel
+	config         config.Config
+	embedder       embeddings.Embedder
+	store          qdrant.Store
+	collectionInfo *store.CollectionInfo
+	llm            llms.Model
+	width          int
+	height         int
+	activeScreen   screen
+	searchModel    SearchModel
+	summaryModel   SummaryModel
 	// initLogs holds the three initialization stage lines shown during startup.
 	// [0]=embedder, [1]=llm, [2]=store
 	initLogs     [3]string
@@ -86,6 +88,13 @@ func (m AppModel) initStoreCmd() tea.Cmd {
 	return func() tea.Msg {
 		qdrantStore, err := runtime.NewStore(m.config, m.embedder)
 		return initStageMsg{stage: "store", payload: qdrantStore, err: err}
+	}
+}
+
+func (m AppModel) initCollectionInfoCmd() tea.Cmd {
+	return func() tea.Msg {
+		info, err := runtime.GetCollectionInfo(m.config)
+		return collectionInfoMsg{info: info, err: err}
 	}
 }
 
@@ -150,14 +159,21 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Transition to ready as soon as store is available for searching.
 			// LLM can finish in the background.
 			if m.initializing {
-				return m.completeInit()
+				app, cmd := m.completeInit()
+				return app, tea.Batch(cmd, m.initCollectionInfoCmd())
 			}
-			return m, nil
+			return m, m.initCollectionInfoCmd()
 		}
 		return m, nil
 
 	case StatusMsg:
 		m.status = msg.Text
+		return m, nil
+
+	case collectionInfoMsg:
+		if msg.err == nil {
+			m.collectionInfo = msg.info
+		}
 		return m, nil
 
 	case tea.WindowSizeMsg:
@@ -250,7 +266,32 @@ func (m AppModel) View() string {
 		view += strings.Repeat("\n", m.height-1-viewHeight)
 	}
 
-	sb := statusBarStyle.Width(m.width).Render(statusTextStyle.Render(" [brain] " + m.status))
+	leftStatus := statusTextStyle.Render(" [brain] " + m.status)
 
-	return lipgloss.JoinVertical(lipgloss.Left, view, sb)
+	configStr := fmt.Sprintf(" LLM: %s/%s | Embed: %s/%s | Collection: %s ",
+		m.config.LLM.Provider, m.config.LLM.Model,
+		m.config.Embedding.Provider, m.config.Embedding.Model,
+		m.config.Qdrant.Collection)
+
+	if m.collectionInfo != nil {
+		configStr += fmt.Sprintf("| Points: %d | Size: %d | %s ",
+			m.collectionInfo.PointsCount,
+			m.collectionInfo.VectorSize,
+			m.collectionInfo.Status)
+	}
+
+	rightStatus := statusTextStyle.Render(configStr)
+
+	// Calculate space between left and right
+	statusWidth := lipgloss.Width(leftStatus) + lipgloss.Width(rightStatus)
+	paddingWidth := m.width - statusWidth
+	if paddingWidth < 0 {
+		paddingWidth = 0
+	}
+
+	statusBar := statusBarStyle.Width(m.width).Render(
+		leftStatus + strings.Repeat(" ", paddingWidth) + rightStatus,
+	)
+
+	return lipgloss.JoinVertical(lipgloss.Left, view, statusBar)
 }

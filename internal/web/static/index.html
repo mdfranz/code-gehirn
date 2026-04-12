@@ -75,8 +75,14 @@
         .topbar-head {
             display: flex;
             justify-content: space-between;
-            align-items: baseline;
+            align-items: center;
             gap: var(--space-3);
+        }
+
+        .brand-section {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
         }
 
         .brand {
@@ -84,13 +90,36 @@
             color: var(--primary);
             font-size: clamp(1.4rem, 2.2vw, 2rem);
             letter-spacing: 0.01em;
+            line-height: 1.1;
         }
 
         .tagline {
             margin: 0;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             color: var(--text-muted);
             white-space: nowrap;
+        }
+
+        .config-badge-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-2);
+            justify-content: flex-end;
+        }
+
+        .config-badge {
+            font-size: 0.75rem;
+            background: #f1f5f9;
+            color: #475569;
+            padding: 2px 8px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            white-space: nowrap;
+        }
+
+        .config-badge strong {
+            color: #1e293b;
+            font-weight: 600;
         }
 
         .main-container {
@@ -395,12 +424,26 @@
         }
     </style>
 </head>
-<body x-data="app()">
+<body x-data="app()" x-init="fetchConfig()">
     <div class="app-shell">
         <header class="topbar">
             <div class="topbar-head">
-                <h1 class="brand">code-gehirn</h1>
-                <p class="tagline">Semantic search and summarization</p>
+                <div class="brand-section">
+                    <h1 class="brand">code-gehirn</h1>
+                    <p class="tagline">Semantic search and summarization</p>
+                </div>
+                <div class="config-badge-group" x-show="config" x-cloak>
+                    <div class="config-badge">LLM: <strong x-text="config.llm_provider + '/' + config.llm_model"></strong></div>
+                    <div class="config-badge">Embed: <strong x-text="config.embedding_provider + '/' + config.embedding_model"></strong></div>
+                    <div class="config-badge">Collection: <strong x-text="config.qdrant_collection"></strong></div>
+                    <template x-if="config.collection_status">
+                        <div class="config-badge">
+                            Points: <strong x-text="config.collection_points"></strong> |
+                            Size: <strong x-text="config.collection_vector_size"></strong> |
+                            <span :style="{ color: config.collection_status === 'green' ? '#16a34a' : '#ca8a04' }" x-text="config.collection_status"></span>
+                        </div>
+                    </template>
+                </div>
             </div>
         </header>
 
@@ -481,6 +524,18 @@
                 searched: false,
                 selectedPath: '',
                 errorMessage: '',
+                config: null,
+
+                async fetchConfig() {
+                    try {
+                        const resp = await fetch('/api/config');
+                        if (resp.ok) {
+                            this.config = await resp.json();
+                        }
+                    } catch (e) {
+                        console.error('Failed to fetch config', e);
+                    }
+                },
 
                 get rightPaneTitle() {
                     if (this.summary) return 'Global Summary';

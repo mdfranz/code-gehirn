@@ -73,3 +73,67 @@ func EnsureCollection(ctx context.Context, cfg config.QdrantConfig, vectorSize i
 	slog.Info("qdrant ensure_collection", "collection", cfg.Collection, "vector_size", vectorSize, "status", resp.StatusCode, "latency_ms", latency)
 	return nil
 }
+
+type CollectionInfo struct {
+	Status      string `json:"status"`
+	PointsCount int    `json:"points_count"`
+	Segments    int    `json:"segments_count"`
+	Config      struct {
+		Params struct {
+			Vectors any `json:"vectors"`
+		} `json:"params"`
+	} `json:"config"`
+	VectorSize int `json:"-"` // Extracted manually
+}
+
+type collectionResponse struct {
+	Result CollectionInfo `json:"result"`
+}
+
+// GetCollectionInfo retrieves metadata and statistics about the configured collection.
+func GetCollectionInfo(ctx context.Context, cfg config.QdrantConfig) (*CollectionInfo, error) {
+	endpoint := fmt.Sprintf("%s/collections/%s", cfg.URL, cfg.Collection)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if cfg.APIKey != "" {
+		req.Header.Set("api-key", cfg.APIKey)
+	}
+
+	resp, err := logger.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("requesting collection info: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("qdrant returned %d when fetching info for %q", resp.StatusCode, cfg.Collection)
+	}
+
+	var cr collectionResponse
+	if err := json.NewDecoder(resp.Body).Decode(&cr); err != nil {
+		return nil, fmt.Errorf("decoding collection info: %w", err)
+	}
+
+	info := &cr.Result
+	// Try to extract vector size from the any field
+	if v, ok := info.Config.Params.Vectors.(map[string]any); ok {
+		if size, ok := v["size"].(float64); ok {
+			info.VectorSize = int(size)
+		} else {
+			// It might be a map of named vectors, look for the first one
+			for _, val := range v {
+				if vm, ok := val.(map[string]any); ok {
+					if size, ok := vm["size"].(float64); ok {
+						info.VectorSize = int(size)
+						break
+					}
+				}
+			}
+		}
+	}
+
+	return info, nil
+}

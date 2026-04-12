@@ -35,8 +35,7 @@ var (
 
 	statusBarStyle = lipgloss.NewStyle().
 			Background(lipgloss.Color("#222222")).
-			Height(1).
-			Width(200) // This will be truncated by View()
+			Height(1)
 
 	statusTextStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#666666"))

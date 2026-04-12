@@ -27,6 +27,7 @@ type EmbeddingConfig struct {
 	Provider string `mapstructure:"provider"`
 	Model    string `mapstructure:"model"`
 	APIKey   string `mapstructure:"api_key"`
+	BaseURL  string `mapstructure:"base_url"`
 }
 
 type SearchConfig struct {
